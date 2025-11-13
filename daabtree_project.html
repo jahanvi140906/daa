@@ -92,7 +92,7 @@
             padding: 2rem;
             box-shadow: var(--shadow-lg);
             position: relative;
-            overflow: auto;
+            overflow: hidden; /* Changed to hidden to better manage internal scrolling/zooming */
             border: 1px solid var(--border);
             display: flex;
             flex-direction: column;
@@ -115,7 +115,16 @@
             justify-content: center;
             align-items: flex-start;
             padding: 2rem;
-            overflow: visible;
+            overflow: auto; /* Make content scrollable */
+        }
+        
+        /* Container for scaling and panning */
+        #treeNodesContainer {
+            position: relative;
+            z-index: 2;
+            width: fit-content;
+            transition: transform 0.3s ease;
+            transform-origin: top center;
         }
 
         .tree-svg {
@@ -126,6 +135,8 @@
             height: 100%;
             pointer-events: none;
             z-index: 1;
+            /* SVG needs to cover the entire scrollable area */
+            overflow: visible;
         }
 
         .tree-nodes {
@@ -133,13 +144,15 @@
             z-index: 2;
             display: flex;
             justify-content: center;
+            /* This is the root level container */
         }
 
         .tree-node {
             display: inline-flex;
             flex-direction: column;
             align-items: center;
-            margin: 0 15px;
+            /* Adjusted margin for better horizontal spacing */
+            margin: 0 20px; 
             position: relative;
         }
 
@@ -161,6 +174,7 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            white-space: nowrap; /* Prevent keys from wrapping */
         }
 
         .node-box.root {
@@ -171,7 +185,7 @@
         .node-box.highlighted {
             background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
             box-shadow: 0 12px 35px rgba(245, 158, 11, 0.5);
-            transform: scale(1.1);
+            transform: scale(1.05); /* Slightly less dramatic scale for search */
         }
 
         .node-box.splitting {
@@ -198,7 +212,8 @@
             padding: 4px 8px;
             border-radius: 6px;
             margin: 0 2px;
-            transition: all 0.3s ease;
+            transition: all 0.5s ease;
+            font-family: monospace;
         }
 
         .node-key.new {
@@ -215,6 +230,14 @@
             animation: keyPromote 1s ease-in-out;
             background: rgba(245, 158, 11, 0.6);
         }
+        
+        .node-key.demoting {
+            background: rgba(239, 68, 68, 0.6);
+        }
+        
+        .node-key.borrowed {
+            background: rgba(99, 102, 241, 0.6);
+        }
 
         @keyframes keyAppear {
             from { transform: scale(0); opacity: 0; }
@@ -227,15 +250,17 @@
         }
 
         @keyframes keyPromote {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-30px); opacity: 0.5; }
+            100% { transform: translateY(0); opacity: 1; }
         }
 
         .node-children {
             display: flex;
             justify-content: center;
             margin-top: 50px;
-            gap: 15px;
+            /* Adjusted gap to be relative to node width */
+            gap: 15px; 
             position: relative;
         }
 
@@ -311,17 +336,32 @@
             color: white;
             box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
         }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
 
         .btn-danger {
             background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
             color: white;
             box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
         }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+        }
 
         .btn-warning {
             background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
             color: white;
             box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+        }
+        
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
         }
 
         .btn:disabled {
@@ -379,6 +419,7 @@
             font-weight: 500;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             z-index: 1000;
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
 
         .notification.success {
@@ -433,6 +474,11 @@
             border-left: 3px solid var(--primary);
             animation: stepSlideIn 0.3s ease-out;
         }
+        
+        .step-item.active {
+            border-left: 3px solid var(--warning);
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        }
 
         @keyframes stepSlideIn {
             from { transform: translateX(-20px); opacity: 0; }
@@ -450,6 +496,10 @@
             justify-content: center;
             font-size: 0.75rem;
             flex-shrink: 0;
+        }
+        
+        .step-item.active .step-icon {
+            background: var(--warning);
         }
 
         .step-content {
@@ -483,6 +533,8 @@
         .code-function { color: #60a5fa; }
         .code-string { color: #86efac; }
         .code-comment { color: #64748b; }
+        .code-variable { color: #f59e0b; }
+        .code-number { color: #10b981; }
 
         .complexity-panel {
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
@@ -569,15 +621,6 @@
             line-height: 1.4;
         }
 
-        .highlight-complexity {
-            animation: complexityPulse 2s ease-in-out;
-        }
-
-        @keyframes complexityPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); box-shadow: 0 8px 25px rgba(251, 191, 36, 0.4); }
-        }
-
         @media (max-width: 1400px) {
             .main-container {
                 grid-template-columns: 300px 1fr 280px;
@@ -619,7 +662,6 @@
     </header>
 
     <main class="main-container">
-        <!-- Left Panel - Controls -->
         <aside class="panel">
             <div class="panel-header">
                 <i class="fas fa-play-circle text-indigo-600"></i>
@@ -627,23 +669,24 @@
             </div>
 
             <div class="animation-controls">
-                <button id="playBtn" onclick="playAnimation()" class="btn btn-success">
+                <button id="playBtn" onclick="playAnimation()" class="btn btn-success" disabled>
                     <i class="fas fa-play"></i>
                 </button>
                 <button id="pauseBtn" onclick="pauseAnimation()" class="btn btn-warning" disabled>
                     <i class="fas fa-pause"></i>
                 </button>
-                <button id="stepBtn" onclick="stepForward()" class="btn btn-primary">
+                <button id="stepBtn" onclick="stepForward()" class="btn btn-primary" disabled>
                     <i class="fas fa-step-forward"></i>
                 </button>
-                <button id="resetBtn" onclick="resetAnimation()" class="btn btn-danger">
+                <button id="resetBtn" onclick="clearTree()" class="btn btn-danger">
                     <i class="fas fa-redo"></i>
+                    Clear
                 </button>
             </div>
 
             <div class="speed-control">
                 <label class="form-label">Animation Speed</label>
-                <input type="range" id="speedSlider" min="0.5" max="3" step="0.5" value="1.5" class="slider">
+                <input type="range" id="speedSlider" min="0.5" max="3" step="0.5" value="1.5" class="slider" oninput="updateSpeedDisplay(this.value)">
                 <div class="flex justify-between text-xs text-gray-500">
                     <span>Slow</span>
                     <span id="speedValue">1.5s</span>
@@ -675,21 +718,23 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">Insert Key</label>
+                <label class="form-label">Insert Key (Numeric/String)</label>
                 <div class="flex gap-2">
-                    <input type="text" id="keyInput" placeholder="Enter any number or letter (e.g., 42, A, apple)" class="form-input">
+                    <input type="text" id="keyInput" placeholder="e.g., 42, A, apple" class="form-input" onkeydown="handleKeyInput(event, insertKey)">
                     <button onclick="insertKey()" class="btn btn-primary">
                         <i class="fas fa-plus"></i>
+                        Insert
                     </button>
                 </div>
             </div>
 
             <div class="form-group">
-                <label class="form-label">Delete Key</label>
+                <label class="form-label">Delete Key (Must exist)</label>
                 <div class="flex gap-2">
-                    <input type="text" id="deleteInput" placeholder="Enter any number or letter (e.g., 42, A, apple)" class="form-input">
+                    <input type="text" id="deleteInput" placeholder="e.g., 42, A, apple" class="form-input" onkeydown="handleKeyInput(event, deleteKey)">
                     <button onclick="deleteKey()" class="btn btn-danger">
                         <i class="fas fa-minus"></i>
+                        Delete
                     </button>
                 </div>
             </div>
@@ -703,18 +748,17 @@
                     <i class="fas fa-trash-alt"></i>
                     Auto Delete
                 </button>
-                <button onclick="clearTree()" class="btn btn-warning">
-                    <i class="fas fa-broom"></i>
-                    Clear
-                </button>
                 <button onclick="generateRandomTree()" class="btn btn-primary">
                     <i class="fas fa-dice"></i>
-                    Random
+                    Random Fill
+                </button>
+                <button onclick="clearTree()" class="btn btn-warning">
+                    <i class="fas fa-broom"></i>
+                    Reset
                 </button>
             </div>
         </aside>
 
-        <!-- Center - Tree Visualization -->
         <section class="tree-container">
             <div class="tree-header">
                 <div class="flex items-center gap-3">
@@ -736,17 +780,18 @@
             </div>
             <div id="treeContent" class="tree-content">
                 <svg id="treeSvg" class="tree-svg"></svg>
-                <div id="treeNodes" class="tree-nodes">
-                    <div class="text-center text-gray-500 mt-20">
-                        <i class="fas fa-sitemap text-6xl mb-4 opacity-50"></i>
-                        <p class="text-xl font-semibold">Empty B-Tree</p>
-                        <p class="text-sm mt-2">Click "Auto Insert" or manually insert keys to begin</p>
+                <div id="treeNodesContainer">
+                    <div id="treeNodes" class="tree-nodes">
+                        <div class="text-center text-gray-500 mt-20">
+                            <i class="fas fa-sitemap text-6xl mb-4 opacity-50"></i>
+                            <p class="text-xl font-semibold">Empty B-Tree</p>
+                            <p class="text-sm mt-2">Click "Auto Insert" or manually insert keys to begin</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Right Panel - Information -->
         <aside class="panel">
             <div class="panel-header">
                 <i class="fas fa-info-circle text-blue-600"></i>
@@ -780,9 +825,9 @@
             <div id="pseudocode" class="code-block">
                 <div><span class="code-comment">// Ready for operations</span></div>
                 <div><span class="code-keyword">function</span> <span class="code-function">START</span>():</div>
-                <div>  Insert or delete keys</div>
-                <div>  Watch animations</div>
-                <div>  Observe B-tree properties</div>
+                <div>&nbsp; Insert or delete keys</div>
+                <div>&nbsp; Watch animations</div>
+                <div>&nbsp; Observe B-tree properties</div>
             </div>
 
             <div class="panel-header">
@@ -826,7 +871,7 @@
                 <div class="complexity-formula">
                     <div><span class="code-comment">// Where t = minimum degree (3)</span></div>
                     <div><span class="code-comment">// n = number of keys in tree</span></div>
-                    <div><span class="code-comment">// Height h ≤ logₜ((n+1)/2)</span></div>
+                    <div><span class="code-comment">// Height h &le; logₜ((n+1)/2)</span></div>
                 </div>
                 
                 <div class="complexity-explanation">
@@ -837,10 +882,61 @@
     </main>
 
     <script>
-        // B-Tree Implementation with configurable degree
+        // --- Configuration ---
         let MIN_DEGREE = 3;
         let MAX_KEYS = 2 * MIN_DEGREE - 1; // 5
         let MIN_KEYS = MIN_DEGREE - 1; // 2
+
+        // --- Global State ---
+        let bTree = null;
+        let animationQueue = [];
+        let isAnimating = false;
+        let animationSpeed = 1500; // Default speed in ms
+        let currentZoom = 1.0;
+        const KEY_COUNT_LIMIT = 50; // Max keys for auto-generation
+
+        // --- Utility Functions ---
+
+        function showNotification(message, type = 'info', duration = 3000) {
+            const container = document.body;
+            const notification = document.createElement('div');
+            notification.classList.add('notification', type);
+            notification.innerHTML = `<i class="fas fa-bell mr-2"></i>${message}`;
+            
+            // Initial state for animation
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateY(-20px)';
+            container.appendChild(notification);
+
+            // Animate in
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateY(0)';
+            }, 10);
+
+            // Animate out and remove
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateY(-20px)';
+                setTimeout(() => {
+                    container.removeChild(notification);
+                }, 300);
+            }, duration);
+        }
+        
+        function updateSpeedDisplay(value) {
+            const speedValue = parseFloat(value);
+            animationSpeed = speedValue * 1000;
+            document.getElementById('speedValue').textContent = `${speedValue.toFixed(1)}s`;
+        }
+
+        function handleKeyInput(event, operationFunction) {
+            if (event.key === 'Enter') {
+                operationFunction();
+            }
+        }
+
+        // --- B-Tree Node Class ---
 
         class BTreeNode {
             constructor(isLeaf = true) {
@@ -848,6 +944,8 @@
                 this.children = [];
                 this.isLeaf = isLeaf;
                 this.id = Math.random().toString(36).substr(2, 9);
+                this.x = 0; // for visualization position
+                this.y = 0; // for visualization position
             }
 
             isFull() {
@@ -856,10 +954,6 @@
 
             hasMinKeys() {
                 return this.keys.length >= MIN_KEYS;
-            }
-
-            canBorrowFromSibling() {
-                return this.keys.length > MIN_KEYS;
             }
 
             findKeyIndex(key) {
@@ -871,955 +965,1240 @@
             }
 
             compareKeys(key1, key2) {
-                // Handle mixed data types: numbers, strings, etc.
-                if (typeof key1 === 'number' && typeof key2 === 'number') {
-                    return key1 - key2;
+                // Ensure comparison is consistent
+                const k1 = isNaN(Number(key1)) ? String(key1) : Number(key1);
+                const k2 = isNaN(Number(key2)) ? String(key2) : Number(key2);
+
+                if (typeof k1 === 'number' && typeof k2 === 'number') {
+                    return k1 - k2;
                 }
-                if (typeof key1 === 'string' && typeof key2 === 'string') {
-                    return key1.localeCompare(key2);
-                }
-                // If types are different, convert to string for comparison
-                return String(key1).localeCompare(String(key2));
+                return String(k1).localeCompare(String(k2));
             }
         }
+
+        // --- B-Tree Class (Core Logic) ---
 
         class BTree {
             constructor() {
                 this.root = null;
+                this.totalKeys = 0;
+                this.nodes = {}; // Track all nodes by ID
+            }
+            
+            init(degree) {
+                MIN_DEGREE = parseInt(degree);
+                MAX_KEYS = 2 * MIN_DEGREE - 1;
+                MIN_KEYS = MIN_DEGREE - 1;
+                this.clear();
+                updateDisplayInfo();
+            }
+            
+            clear() {
+                this.root = null;
+                this.totalKeys = 0;
+                this.nodes = {};
             }
 
             insert(key) {
+                key = this.normalizeKey(key);
+                if (key === null) return [];
+
+                if (this.search(key).found) {
+                    showNotification(`Key ${key} already exists.`, 'error');
+                    return [];
+                }
+
+                const steps = [];
+
                 if (this.root === null) {
                     this.root = new BTreeNode(true);
                     this.root.keys.push(key);
-                    return { type: 'new_root', node: this.root };
+                    this.nodes[this.root.id] = this.root;
+                    this.totalKeys++;
+                    steps.push({ type: 'new_root', key, node: this.root });
+                    return steps;
                 }
 
                 // If root is full, split it first
                 if (this.root.isFull()) {
+                    const oldRoot = this.root;
                     const newRoot = new BTreeNode(false);
-                    newRoot.children.push(this.root);
-                    const splitResult = this.splitChild(newRoot, 0);
+                    this.nodes[newRoot.id] = newRoot;
+                    newRoot.children.push(oldRoot);
                     this.root = newRoot;
+                    steps.push({ type: 'split_root_start', oldRoot, newRoot });
                     
-                    // Determine which child to insert into
-                    const idx = newRoot.findKeyIndex(key);
-                    return this.insertNonFull(newRoot.children[idx], key, newRoot, idx);
-                } else {
-                    return this.insertNonFull(this.root, key);
+                    this.splitChild(newRoot, 0, steps);
+
+                    steps.push({ type: 'split_root_end', newRoot });
                 }
+                
+                this.insertNonFull(this.root, key, steps);
+                this.totalKeys++;
+                return steps;
             }
 
-            insertNonFull(node, key, parent = null, parentIndex = -1) {
-                const idx = node.findKeyIndex(key);
+            insertNonFull(node, key, steps) {
+                let idx = node.findKeyIndex(key);
+                steps.push({ type: 'traverse_insert', key, node, childIndex: idx });
 
                 if (node.isLeaf) {
                     // Insert key into leaf node
                     node.keys.splice(idx, 0, key);
-                    return { type: 'inserted_leaf', node, key, index: idx };
+                    steps.push({ type: 'inserted_leaf', key, node, index: idx });
                 } else {
-                    // Insert into internal node
+                    // Descend to child
                     let child = node.children[idx];
                     
                     // If child is full, split it
                     if (child.isFull()) {
-                        const splitResult = this.splitChild(node, idx);
+                        steps.push({ type: 'split_child_start', parent: node, child, childIndex: idx });
+                        this.splitChild(node, idx, steps);
+                        steps.push({ type: 'split_child_end', parent: node });
                         
-                        // After split, determine which child to insert into
+                        // After split, determine which of the two new children to insert into
                         if (node.compareKeys(node.keys[idx], key) < 0) {
                             idx++;
                             child = node.children[idx];
+                            steps.push({ type: 're_traverse', key, node, childIndex: idx });
                         }
                     }
                     
-                    return this.insertNonFull(child, key, node, idx);
+                    this.insertNonFull(child, key, steps);
                 }
             }
 
-            splitChild(parent, index) {
+            splitChild(parent, index, steps) {
                 const fullChild = parent.children[index];
                 const newNode = new BTreeNode(fullChild.isLeaf);
+                this.nodes[newNode.id] = newNode;
                 
-                // Split keys
-                const midIndex = Math.floor(fullChild.keys.length / 2);
+                const midIndex = MIN_DEGREE - 1; // Index of the key to be promoted
                 const promotedKey = fullChild.keys[midIndex];
                 
+                // New node takes keys > promotedKey
                 newNode.keys = fullChild.keys.slice(midIndex + 1);
                 fullChild.keys = fullChild.keys.slice(0, midIndex);
                 
-                // Split children if not leaf
+                // If not leaf, new node takes children (MIN_DEGREE to 2*MIN_DEGREE - 1)
                 if (!fullChild.isLeaf) {
-                    newNode.children = fullChild.children.slice(midIndex + 1);
-                    fullChild.children = fullChild.children.slice(0, midIndex + 1);
+                    const childrenToMove = fullChild.children.splice(MIN_DEGREE);
+                    newNode.children = childrenToMove;
                 }
                 
-                // Insert promoted key to parent and new child
-                parent.keys.splice(index, 0, promotedKey);
+                // Insert new node and promoted key into parent
                 parent.children.splice(index + 1, 0, newNode);
-                
-                return { 
-                    type: 'split', 
+                parent.keys.splice(index, 0, promotedKey);
+
+                steps.push({ 
+                    type: 'split_complete', 
                     parent, 
-                    leftChild: fullChild, 
-                    rightChild: newNode, 
-                    promotedKey 
-                };
+                    promotedKey, 
+                    fullChild, 
+                    newNode, 
+                    index 
+                });
             }
+
+            // --- Deletion Logic ---
 
             delete(key) {
-                if (this.root === null) {
-                    return { type: 'empty_tree' };
+                key = this.normalizeKey(key);
+                if (key === null) return [];
+
+                const searchResult = this.search(key);
+                if (!searchResult.found) {
+                    showNotification(`Key ${key} not found for deletion.`, 'error');
+                    return [];
                 }
 
-                const result = this.deleteFromNode(this.root, key);
+                const steps = [];
+                this.deleteKeyFromNode(this.root, key, steps);
                 
-                // If root becomes empty and has children, make first child new root
-                if (this.root.keys.length === 0 && !this.root.isLeaf) {
-                    this.root = this.root.children[0];
-                    result.type = 'root_collapsed';
+                // Post-deletion: If root has 0 keys and children, it collapses
+                if (this.root.keys.length === 0) {
+                    if (this.root.isLeaf) {
+                        this.root = null;
+                        steps.push({ type: 'tree_cleared' });
+                    } else {
+                        const oldRoot = this.root;
+                        this.root = this.root.children[0];
+                        steps.push({ type: 'root_collapsed', oldRoot, newRoot: this.root });
+                    }
                 }
                 
-                return result;
+                this.totalKeys--;
+                return steps;
             }
 
-            deleteFromNode(node, key, parent = null, parentIndex = -1) {
-                const idx = node.findKeyIndex(key);
+            deleteKeyFromNode(node, key, steps) {
+                let idx = node.findKeyIndex(key);
 
+                // Case 1: Key is in the current internal node
                 if (idx < node.keys.length && node.compareKeys(node.keys[idx], key) === 0) {
-                    // Key found in this node
-                    if (node.isLeaf) {
-                        // Simple case: delete from leaf
-                        node.keys.splice(idx, 1);
-                        return { type: 'deleted_leaf', node, key, index: idx };
-                    } else {
-                        // Delete from internal node
-                        return this.deleteFromInternalNode(node, idx, key);
-                    }
-                } else {
-                    // Key not in this node, go to appropriate child
-                    if (node.isLeaf) {
-                        return { type: 'key_not_found', key };
-                    }
+                    steps.push({ type: 'found_for_delete', key, node, index: idx });
 
-                    let child = node.children[idx];
-                    
-                    // Ensure child has at least MIN_KEYS keys
-                    if (child.keys.length <= MIN_KEYS) {
-                        const fixResult = this.fixChildSize(node, idx);
-                        if (fixResult.type === 'merged') {
-                            child = node.children[idx]; // Child might have changed
+                    if (node.isLeaf) {
+                        // Case 1a: Key is in a leaf node
+                        node.keys.splice(idx, 1);
+                        steps.push({ type: 'deleted_leaf', key, node });
+                        return;
+                    } else {
+                        // Case 1b: Key is in an internal node
+                        const leftChild = node.children[idx];
+                        const rightChild = node.children[idx + 1];
+
+                        if (leftChild.keys.length >= MIN_DEGREE) {
+                            // Find predecessor in left child's subtree
+                            let predecessor = this.getPredecessor(leftChild, steps);
+                            steps.push({ 
+                                type: 'predecessor_swap', 
+                                key, 
+                                node, 
+                                index: idx, 
+                                predecessor 
+                            });
+                            node.keys[idx] = predecessor;
+                            this.deleteKeyFromNode(leftChild, predecessor, steps);
+                        } else if (rightChild.keys.length >= MIN_DEGREE) {
+                            // Find successor in right child's subtree
+                            let successor = this.getSuccessor(rightChild, steps);
+                            steps.push({ 
+                                type: 'successor_swap', 
+                                key, 
+                                node, 
+                                index: idx, 
+                                successor 
+                            });
+                            node.keys[idx] = successor;
+                            this.deleteKeyFromNode(rightChild, successor, steps);
+                        } else {
+                            // Merge left and right children
+                            steps.push({ type: 'merge_children_start', parent: node, key, index: idx, leftChild, rightChild });
+                            this.mergeChildren(node, idx, steps);
+                            // After merge, key is in the merged node (leftChild now)
+                            this.deleteKeyFromNode(leftChild, key, steps);
                         }
                     }
+                } 
+                // Case 2: Key is not in current node (descend)
+                else {
+                    if (node.isLeaf) {
+                        return; // Key not found (shouldn't happen if search worked)
+                    }
+
+                    steps.push({ type: 'traverse_delete', key, node, childIndex: idx });
+                    let child = node.children[idx];
+
+                    if (child.keys.length === MIN_KEYS - 1) { // Child is deficient
+                        steps.push({ type: 'deficient_child', node, child, childIndex: idx });
+                        this.handleDeficientChild(node, idx, steps);
+                        
+                        // After handling deficiency, check which child to continue with
+                        if (idx < node.keys.length && node.compareKeys(key, node.keys[idx]) > 0) {
+                            idx++; // Descend right if key is greater than the new key added to the parent
+                        }
+                    }
+
+                    this.deleteKeyFromNode(node.children[idx], key, steps);
+                }
+            }
+
+            // Helper for Case 1b: Finds the largest key in the left subtree (max key in a leaf)
+            getPredecessor(node, steps) {
+                steps.push({ type: 'find_predecessor', node });
+                while (!node.isLeaf) {
+                    node = node.children[node.children.length - 1];
+                    steps.push({ type: 'traverse_predecessor', node });
+                }
+                return node.keys[node.keys.length - 1];
+            }
+
+            // Helper for Case 1b: Finds the smallest key in the right subtree (min key in a leaf)
+            getSuccessor(node, steps) {
+                steps.push({ type: 'find_successor', node });
+                while (!node.isLeaf) {
+                    node = node.children[0];
+                    steps.push({ type: 'traverse_successor', node });
+                }
+                return node.keys[0];
+            }
+
+            // Helper for Case 2: Handles deficient child (t-1 keys)
+            handleDeficientChild(parent, idx, steps) {
+                const child = parent.children[idx];
+                const leftSibling = idx > 0 ? parent.children[idx - 1] : null;
+                const rightSibling = idx < parent.children.length - 1 ? parent.children[idx + 1] : null;
+
+                // Case 2a: Try to borrow from left sibling
+                if (leftSibling && leftSibling.keys.length >= MIN_DEGREE) {
+                    steps.push({ type: 'borrow_left_start', parent, child, leftSibling });
                     
-                    return this.deleteFromNode(child, key, node, idx);
-                }
-            }
+                    // Parent key moves down, sibling key moves up
+                    const parentKey = parent.keys[idx - 1];
+                    const borrowedKey = leftSibling.keys.pop();
+                    
+                    child.keys.unshift(parentKey);
+                    parent.keys[idx - 1] = borrowedKey;
+                    
+                    if (!child.isLeaf) {
+                        // Move last child pointer from leftSibling to child
+                        const childToMove = leftSibling.children.pop();
+                        child.children.unshift(childToMove);
+                    }
+                    
+                    steps.push({ type: 'borrow_left_end', parent, child, leftSibling, parentKey, borrowedKey });
+                } 
+                // Case 2b: Try to borrow from right sibling
+                else if (rightSibling && rightSibling.keys.length >= MIN_DEGREE) {
+                    steps.push({ type: 'borrow_right_start', parent, child, rightSibling });
+                    
+                    // Parent key moves down, sibling key moves up
+                    const parentKey = parent.keys[idx];
+                    const borrowedKey = rightSibling.keys.shift();
+                    
+                    child.keys.push(parentKey);
+                    parent.keys[idx] = borrowedKey;
+                    
+                    if (!child.isLeaf) {
+                        // Move first child pointer from rightSibling to child
+                        const childToMove = rightSibling.children.shift();
+                        child.children.push(childToMove);
+                    }
 
-            deleteFromInternalNode(node, idx, key) {
-                // Case 1: Replace with predecessor
-                if (node.children[idx].keys.length >= MIN_KEYS) {
-                    const predecessor = this.getPredecessor(node.children[idx]);
-                    node.keys[idx] = predecessor;
-                    return this.deleteFromNode(node.children[idx], predecessor, node, idx);
-                }
-                // Case 2: Replace with successor
-                else if (node.children[idx + 1].keys.length >= MIN_KEYS) {
-                    const successor = this.getSuccessor(node.children[idx + 1]);
-                    node.keys[idx] = successor;
-                    return this.deleteFromNode(node.children[idx + 1], successor, node, idx + 1);
-                }
-                // Case 3: Merge and delete
+                    steps.push({ type: 'borrow_right_end', parent, child, rightSibling, parentKey, borrowedKey });
+                } 
+                // Case 2c: Merge with a sibling
                 else {
-                    const mergeResult = this.mergeChildren(node, idx);
-                    return this.deleteFromNode(mergeResult.mergedNode, key, node, idx);
+                    if (leftSibling) {
+                        // Merge with left sibling
+                        steps.push({ type: 'merge_left_start', parent, child, leftSibling, index: idx - 1 });
+                        this.mergeChildren(parent, idx - 1, steps); // Merge leftSibling and child
+                    } else if (rightSibling) {
+                        // Merge with right sibling
+                        steps.push({ type: 'merge_right_start', parent, child, rightSibling, index: idx });
+                        this.mergeChildren(parent, idx, steps); // Merge child and rightSibling
+                    }
                 }
             }
 
-            fixChildSize(parent, index) {
-                let child = parent.children[index];
+            // Helper for Case 1b and 2c: Merges child[idx] and child[idx+1]
+            mergeChildren(parent, idx, steps) {
+                const left = parent.children[idx];
+                const right = parent.children[idx + 1];
+                const medianKey = parent.keys[idx];
+
+                // Pull down parent key
+                left.keys.push(medianKey);
                 
-                // Try to borrow from left sibling
-                if (index > 0 && parent.children[index - 1].canBorrowFromSibling()) {
-                    return this.borrowFromLeftSibling(parent, index);
+                // Merge keys from right to left
+                left.keys = left.keys.concat(right.keys);
+                
+                // Merge children if not leaf
+                if (!left.isLeaf) {
+                    left.children = left.children.concat(right.children);
                 }
-                // Try to borrow from right sibling
-                else if (index < parent.children.length - 1 && parent.children[index + 1].canBorrowFromSibling()) {
-                    return this.borrowFromRightSibling(parent, index);
-                }
-                // Merge with sibling
-                else {
-                    if (index < parent.children.length - 1) {
-                        return this.mergeChildren(parent, index);
+                
+                // Remove median key and right child from parent
+                parent.keys.splice(idx, 1);
+                parent.children.splice(idx + 1, 1);
+                
+                // Clean up merged node reference
+                delete this.nodes[right.id];
+                
+                steps.push({ type: 'merged_complete', parent, left, right, medianKey, index: idx });
+            }
+
+            search(key) {
+                key = this.normalizeKey(key);
+                if (this.root === null) return { found: false, steps: [] };
+                
+                const steps = [];
+                let node = this.root;
+                let found = false;
+
+                while (node) {
+                    let idx = node.findKeyIndex(key);
+                    
+                    if (idx < node.keys.length && node.compareKeys(node.keys[idx], key) === 0) {
+                        steps.push({ type: 'search_hit', key, node, index: idx });
+                        found = true;
+                        break;
+                    } else if (node.isLeaf) {
+                        steps.push({ type: 'search_miss_leaf', key, node });
+                        break;
                     } else {
-                        return this.mergeChildren(parent, index - 1);
+                        steps.push({ type: 'search_traverse', key, node, childIndex: idx });
+                        node = node.children[idx];
                     }
                 }
+
+                return { found, steps };
             }
 
-            borrowFromLeftSibling(parent, index) {
-                const child = parent.children[index];
-                const leftSibling = parent.children[index - 1];
+            normalizeKey(key) {
+                key = String(key).trim();
+                if (key === "") return null;
                 
-                // Move parent key down to child
-                child.keys.unshift(parent.keys[index - 1]);
-                
-                // Move left sibling's last key up to parent
-                parent.keys[index - 1] = leftSibling.keys.pop();
-                
-                // If not leaf, move child pointer
-                if (!leftSibling.isLeaf) {
-                    child.children.unshift(leftSibling.children.pop());
+                if (!isNaN(Number(key)) && key.length > 0) {
+                    return Number(key);
                 }
-                
-                return { type: 'borrowed_left', child, leftSibling, parent };
+                return key.toUpperCase(); // Standardize strings
             }
 
-            borrowFromRightSibling(parent, index) {
-                const child = parent.children[index];
-                const rightSibling = parent.children[index + 1];
-                
-                // Move parent key down to child
-                child.keys.push(parent.keys[index]);
-                
-                // Move right sibling's first key up to parent
-                parent.keys[index] = rightSibling.keys.shift();
-                
-                // If not leaf, move child pointer
-                if (!rightSibling.isLeaf) {
-                    child.children.push(rightSibling.children.shift());
-                }
-                
-                return { type: 'borrowed_right', child, rightSibling, parent };
-            }
+            // --- Visualization Helpers (for stats) ---
 
-            mergeChildren(parent, index) {
-                const leftChild = parent.children[index];
-                const rightChild = parent.children[index + 1];
-                
-                // Move parent key down to left child
-                leftChild.keys.push(parent.keys[index]);
-                
-                // Merge right child's keys and children
-                leftChild.keys.push(...rightChild.keys);
-                if (!rightChild.isLeaf) {
-                    leftChild.children.push(...rightChild.children);
-                }
-                
-                // Remove parent key and right child
-                parent.keys.splice(index, 1);
-                parent.children.splice(index + 1, 1);
-                
-                return { type: 'merged', mergedNode: leftChild, leftChild, rightChild, parent };
-            }
-
-            getPredecessor(node) {
-                let current = node;
-                while (!current.isLeaf) {
-                    current = current.children[current.children.length - 1];
-                }
-                return current.keys[current.keys.length - 1];
-            }
-
-            getSuccessor(node) {
+            getHeight(node = this.root) {
+                if (node === null) return 0;
+                let h = 1;
                 let current = node;
                 while (!current.isLeaf) {
                     current = current.children[0];
+                    h++;
                 }
-                return current.keys[0];
+                return h;
             }
 
-            getHeight() {
-                if (!this.root) return 0;
-                let height = 1;
-                let current = this.root;
-                while (!current.isLeaf) {
-                    height++;
-                    current = current.children[0];
-                }
-                return height;
-            }
-
-            getNodeCount() {
-                if (!this.root) return 0;
-                return this.countNodesHelper(this.root);
-            }
-
-            countNodesHelper(node) {
-                if (node.isLeaf) return 1;
+            getNodeCount(node = this.root) {
+                if (node === null) return 0;
                 let count = 1;
-                for (let child of node.children) {
-                    count += this.countNodesHelper(child);
-                }
-                return count;
-            }
-
-            getTotalKeys() {
-                if (!this.root) return 0;
-                return this.countKeysHelper(this.root);
-            }
-
-            countKeysHelper(node) {
-                let count = node.keys.length;
-                if (!node.isLeaf) {
-                    for (let child of node.children) {
-                        count += this.countKeysHelper(child);
-                    }
+                for (const child of node.children) {
+                    count += this.getNodeCount(child);
                 }
                 return count;
             }
         }
 
-        // Animation System
-        class AnimationController {
-            constructor() {
-                this.btree = new BTree();
-                this.isPlaying = false;
-                this.animationSpeed = 1500;
-                this.currentStep = 0;
-                this.animationQueue = [];
-                this.zoomLevel = 1;
-                this.isDarkTheme = false;
-            }
+        // --- Visualization Rendering ---
 
-            async animateInsert(key) {
-                this.addStep('start', `Inserting key ${key}`, `Starting insertion process`);
-                this.updatePseudocode('insert', key);
-                this.highlightComplexity('insert');
-                
-                // Highlight search path
-                const searchPath = this.findSearchPath(key);
-                await this.highlightPath(searchPath);
-                
-                // Perform insertion
-                const result = this.btree.insert(key);
-                await this.animateInsertResult(result);
-                
-                // Update visualization
-                this.visualizeTree();
-                this.updateStatistics();
-                this.updateComplexityInfo();
-                
-                this.addStep('complete', `Key ${key} inserted`, `Insertion completed successfully`);
-                this.showNotification(`Key ${key} inserted successfully`, 'success');
-                document.getElementById('lastOp').textContent = `Insert ${key}`;
-            }
+        function updateDisplayInfo() {
+            document.getElementById('currentDegree').textContent = MIN_DEGREE;
+            document.getElementById('maxKeysDisplay').textContent = MAX_KEYS;
+            document.getElementById('minKeysDisplay').textContent = MIN_KEYS;
+            document.getElementById('orderInfo').textContent = `Current: t=${MIN_DEGREE}, Min keys=${MIN_KEYS}, Max keys=${MAX_KEYS}`;
 
-            async animateDelete(key) {
-                this.addStep('start', `Deleting key ${key}`, `Starting deletion process`);
-                this.updatePseudocode('delete', key);
-                this.highlightComplexity('delete');
-                
-                // Highlight search path
-                const searchPath = this.findSearchPath(key);
-                await this.highlightPath(searchPath);
-                
-                // Perform deletion
-                const result = this.btree.delete(key);
-                await this.animateDeleteResult(result);
-                
-                // Update visualization
-                this.visualizeTree();
-                this.updateStatistics();
-                this.updateComplexityInfo();
-                
-                this.addStep('complete', `Key ${key} deleted`, `Deletion completed successfully`);
-                this.showNotification(`Key ${key} deleted successfully`, 'success');
-                document.getElementById('lastOp').textContent = `Delete ${key}`;
+            if (bTree) {
+                document.getElementById('totalKeys').textContent = bTree.totalKeys;
+                document.getElementById('treeHeight').textContent = bTree.getHeight();
+                document.getElementById('nodeCount').textContent = bTree.getNodeCount();
+            } else {
+                document.getElementById('totalKeys').textContent = 0;
+                document.getElementById('treeHeight').textContent = 0;
+                document.getElementById('nodeCount').textContent = 0;
             }
+        }
 
-            findSearchPath(key) {
-                const path = [];
-                this.findSearchPathHelper(this.btree.root, key, path);
-                return path;
+        function renderTree(root, containerId = 'treeNodes', svgId = 'treeSvg') {
+            const container = document.getElementById(containerId);
+            const svg = document.getElementById(svgId);
+
+            // Clear previous content
+            container.innerHTML = '';
+            svg.innerHTML = '';
+            
+            if (!root) {
+                container.innerHTML = `<div class="text-center text-gray-500 mt-20">
+                    <i class="fas fa-sitemap text-6xl mb-4 opacity-50"></i>
+                    <p class="text-xl font-semibold">Empty B-Tree</p>
+                    <p class="text-sm mt-2">Click "Auto Insert" or manually insert keys to begin</p>
+                </div>`;
+                updateDisplayInfo();
+                return;
             }
+            
+            // 1. Recursive Render to calculate initial positions and build HTML structure
+            const rootEl = renderNode(root);
+            container.appendChild(rootEl);
+            
+            // 2. Position Nodes and Draw Edges
+            
+            // Use a post-render layout system for accurate positioning (Tree layout algorithm)
+            // This is a simplified, non-d3-based horizontal layout
+            const nodeElements = Array.from(container.querySelectorAll('.tree-node'));
+            
+            // Constants for layout
+            const NODE_HEIGHT = 70;
+            const VERTICAL_SPACING = 50;
+            const PADDING_X = 20;
 
-            findSearchPathHelper(node, key, path) {
-                if (!node) return;
-                path.push(node);
-                
+            let maxDepth = 0;
+
+            // Step 2a: Calculate width and depth (x, y) for each node
+            const layout = {};
+            let currentX = PADDING_X;
+
+            function calculateLayout(nodeEl, node, depth) {
+                if (!nodeEl) return 0;
+
+                maxDepth = Math.max(maxDepth, depth);
+
+                const nodeWidth = nodeEl.offsetWidth;
+                let totalWidth = 0;
+
                 if (!node.isLeaf) {
-                    const idx = node.findKeyIndex(key);
-                    this.findSearchPathHelper(node.children[idx], key, path);
-                }
-            }
-
-            async highlightPath(path) {
-                for (let node of path) {
-                    const element = document.querySelector(`[data-node-id="node-${node.id}"]`);
-                    if (element) {
-                        element.classList.add('highlighted');
-                        await this.sleep(this.animationSpeed / 3);
-                        element.classList.remove('highlighted');
-                    }
-                }
-            }
-
-            async animateInsertResult(result) {
-                switch (result.type) {
-                    case 'new_root':
-                        await this.animateNewRoot(result);
-                        break;
-                    case 'inserted_leaf':
-                        await this.animateLeafInsert(result);
-                        break;
-                    case 'split':
-                        await this.animateSplit(result);
-                        break;
-                }
-            }
-
-            async animateDeleteResult(result) {
-                switch (result.type) {
-                    case 'deleted_leaf':
-                        await this.animateLeafDelete(result);
-                        break;
-                    case 'borrowed_left':
-                    case 'borrowed_right':
-                        await this.animateBorrow(result);
-                        break;
-                    case 'merged':
-                        await this.animateMerge(result);
-                        break;
-                    case 'root_collapsed':
-                        await this.animateRootCollapse(result);
-                        break;
-                }
-            }
-
-            async animateNewRoot(result) {
-                const element = document.querySelector(`[data-node-id="node-${result.node.id}"]`);
-                if (element) {
-                    element.classList.add('splitting');
-                    await this.sleep(this.animationSpeed);
-                    element.classList.remove('splitting');
-                }
-            }
-
-            async animateLeafInsert(result) {
-                const element = document.querySelector(`[data-node-id="node-${result.node.id}"]`);
-                if (element) {
-                    const keyElements = element.querySelectorAll('.node-key');
-                    if (keyElements[result.index]) {
-                        keyElements[result.index].classList.add('new');
-                        await this.sleep(this.animationSpeed);
-                    }
-                }
-            }
-
-            async animateSplit(result) {
-                const parentEl = document.querySelector(`[data-node-id="node-${result.parent.id}"]`);
-                if (parentEl) {
-                    parentEl.classList.add('splitting');
-                    await this.sleep(this.animationSpeed);
-                    parentEl.classList.remove('splitting');
-                }
-            }
-
-            async animateLeafDelete(result) {
-                const element = document.querySelector(`[data-node-id="node-${result.node.id}"]`);
-                if (element) {
-                    const keyElements = element.querySelectorAll('.node-key');
-                    if (keyElements[result.index]) {
-                        keyElements[result.index].classList.add('deleting');
-                        await this.sleep(this.animationSpeed);
-                    }
-                }
-            }
-
-            async animateBorrow(result) {
-                const childEl = document.querySelector(`[data-node-id="node-${result.child.id}"]`);
-                if (childEl) {
-                    childEl.classList.add('highlighted');
-                    await this.sleep(this.animationSpeed / 2);
-                    childEl.classList.remove('highlighted');
-                }
-            }
-
-            async animateMerge(result) {
-                const leftEl = document.querySelector(`[data-node-id="node-${result.leftChild.id}"]`);
-                const rightEl = document.querySelector(`[data-node-id="node-${result.rightChild.id}"]`);
-                
-                if (leftEl && rightEl) {
-                    leftEl.classList.add('merging');
-                    rightEl.classList.add('merging');
-                    await this.sleep(this.animationSpeed);
-                    leftEl.classList.remove('merging');
-                    rightEl.classList.remove('merging');
-                }
-            }
-
-            async animateRootCollapse(result) {
-                const rootEl = document.querySelector('.tree-nodes > .tree-node > .node-box.root');
-                if (rootEl) {
-                    rootEl.classList.add('merging');
-                    await this.sleep(this.animationSpeed);
-                    rootEl.classList.remove('merging');
-                }
-            }
-
-            visualizeTree() {
-                const container = document.getElementById('treeContent');
-                const nodesContainer = document.getElementById('treeNodes');
-                const svg = document.getElementById('treeSvg');
-                
-                if (!this.btree.root) {
-                    nodesContainer.innerHTML = `
-                        <div class="text-center text-gray-500 mt-20">
-                            <i class="fas fa-sitemap text-6xl mb-4 opacity-50"></i>
-                            <p class="text-xl font-semibold">Empty B-Tree</p>
-                            <p class="text-sm mt-2">Click "Auto Insert" or manually insert keys to begin</p>
-                        </div>
-                    `;
-                    svg.innerHTML = '';
-                    return;
-                }
-
-                nodesContainer.innerHTML = '';
-                svg.innerHTML = '';
-                container.style.transform = `scale(${this.zoomLevel})`;
-                
-                const treeHtml = this.createTreeNode(this.btree.root, true);
-                nodesContainer.innerHTML = treeHtml;
-                
-                this.drawEdges();
-            }
-
-            createTreeNode(node, isRoot = false) {
-                if (!node) return '';
-                
-                const nodeId = 'node-' + node.id;
-                const keysHtml = node.keys.map(key => 
-                    `<span class="node-key">${key}</span>`
-                ).join('');
-                
-                let html = `
-                    <div class="tree-node" data-node-id="${nodeId}">
-                        <div class="node-box ${isRoot ? 'root' : ''}" data-node-id="${nodeId}">
-                            ${keysHtml}
-                        </div>
-                `;
-                
-                if (!node.isLeaf && node.children.length > 0) {
-                    html += '<div class="node-children">';
-                    node.children.forEach(child => {
-                        html += this.createTreeNode(child, false);
-                    });
-                    html += '</div>';
-                }
-                
-                html += '</div>';
-                return html;
-            }
-
-            drawEdges() {
-                const svg = document.getElementById('treeSvg');
-                const container = document.getElementById('treeContent');
-                
-                svg.innerHTML = '';
-                
-                function drawEdgesRecursive(parentElement) {
-                    const parentBox = parentElement.querySelector(':scope > .node-box');
-                    const childrenContainer = parentElement.querySelector(':scope > .node-children');
+                    // Recurse on children first
+                    const childrenEls = Array.from(nodeEl.querySelector('.node-children').children);
                     
-                    if (!parentBox || !childrenContainer) return;
+                    for (let i = 0; i < node.children.length; i++) {
+                        totalWidth += calculateLayout(childrenEls[i], node.children[i], depth + 1);
+                    }
                     
-                    const childNodes = Array.from(childrenContainer.children);
+                    // The node's center is the center of its children's span
+                    const leftChildCenter = layout[node.children[0].id].center;
+                    const rightChildCenter = layout[node.children[node.children.length - 1].id].center;
+                    const center = (leftChildCenter + rightChildCenter) / 2;
                     
-                    childNodes.forEach(childNode => {
-                        const childBox = childNode.querySelector('.node-box');
-                        if (!childBox) return;
-                        
-                        const parentRect = parentBox.getBoundingClientRect();
-                        const childRect = childBox.getBoundingClientRect();
-                        const containerRect = container.getBoundingClientRect();
-                        
-                        const x1 = parentRect.left + parentRect.width / 2 - containerRect.left;
-                        const y1 = parentRect.bottom - containerRect.top - 5;
-                        const x2 = childRect.left + childRect.width / 2 - containerRect.left;
-                        const y2 = childRect.top - containerRect.top + 5;
-                        
-                        const edge = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        edge.setAttribute('x1', x1);
-                        edge.setAttribute('y1', y1);
-                        edge.setAttribute('x2', x2);
-                        edge.setAttribute('y2', y2);
-                        edge.setAttribute('class', 'tree-edge');
-                        edge.setAttribute('stroke', '#6366f1');
-                        edge.setAttribute('stroke-width', '3');
-                        edge.setAttribute('fill', 'none');
-                        edge.setAttribute('stroke-linecap', 'round');
-                        
-                        svg.appendChild(edge);
-                        
-                        drawEdgesRecursive(childNode);
+                    layout[node.id] = {
+                        width: nodeWidth,
+                        x: center - nodeWidth / 2,
+                        y: depth * (NODE_HEIGHT + VERTICAL_SPACING),
+                        center: center,
+                        depth: depth,
+                        element: nodeEl
+                    };
+                    
+                    return totalWidth; // Return total width of children subtree
+                    
+                } else {
+                    // Leaf Node: Calculate its position sequentially
+                    const center = currentX + nodeWidth / 2;
+                    
+                    layout[node.id] = {
+                        width: nodeWidth,
+                        x: currentX,
+                        y: depth * (NODE_HEIGHT + VERTICAL_SPACING),
+                        center: center,
+                        depth: depth,
+                        element: nodeEl
+                    };
+                    
+                    currentX += nodeWidth + PADDING_X * 2;
+                    return nodeWidth + PADDING_X * 2;
+                }
+            }
+            
+            const rootEl_ = container.querySelector('.tree-node');
+            if (rootEl_) {
+                calculateLayout(rootEl_, root, 0);
+            }
+            
+            // Adjust Root X position to center the tree initially based on max width
+            let finalWidth = 0;
+            if (nodeElements.length > 0) {
+                 // The final calculated width will be determined by the last leaf node placement (if calculated sequentially)
+                finalWidth = currentX; 
+            }
+            
+            // The tree container must be large enough to contain all nodes
+            container.style.width = `${finalWidth + PADDING_X}px`; 
+            
+            // Center the root node in the computed width (only if the tree is not centered yet)
+            const offsetX = (container.offsetWidth - layout[root.id].width) / 2 - layout[root.id].x;
+            
+            // Reposition all nodes using the calculated layout
+            function applyLayoutAndDrawEdges(node) {
+                const data = layout[node.id];
+                if (!data) return; // Should not happen
+
+                // Apply Node Position
+                data.element.style.position = 'absolute';
+                
+                // If the tree width is less than the container width, calculate a new root offset to center the view
+                const containerWidth = document.getElementById('treeContent').offsetWidth;
+                let finalOffsetX = 0;
+                if (containerWidth > data.element.parentElement.offsetWidth) {
+                    finalOffsetX = (containerWidth - data.element.parentElement.offsetWidth) / 2;
+                } else {
+                    finalOffsetX = 0;
+                }
+                
+                data.element.style.transform = `translate(${data.x + finalOffsetX}px, ${data.y}px)`;
+                
+                // Draw Edges to Children
+                if (!node.isLeaf) {
+                    const parentX = data.center + finalOffsetX;
+                    const parentY = data.y + NODE_HEIGHT;
+                    
+                    node.children.forEach((child, i) => {
+                        const childData = layout[child.id];
+                        if (childData) {
+                            const childX = childData.center + finalOffsetX;
+                            const childY = childData.y;
+                            
+                            // Draw a smooth curved line (Bezier curve)
+                            const midY = parentY + VERTICAL_SPACING / 2;
+                            const path = `M ${parentX} ${parentY} C ${parentX} ${midY}, ${childX} ${midY}, ${childX} ${childY}`;
+                            
+                            const edge = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            edge.setAttribute('d', path);
+                            edge.setAttribute('class', 'tree-edge');
+                            edge.setAttribute('id', `edge-${node.id}-${child.id}`);
+                            svg.appendChild(edge);
+                            
+                            applyLayoutAndDrawEdges(child); // Recursive call for children
+                        }
                     });
                 }
-                
-                const rootNode = container.querySelector('.tree-nodes > .tree-node');
-                if (rootNode) {
-                    drawEdgesRecursive(rootNode);
-                }
             }
 
-            async generateInsertSequence() {
-                // Mixed sequence with numbers, letters, and words
-                const keys = [20, 'M', 30, 'A', 15, 'Z', 25, 'K', 5, 'C', 35, 'X', 10, 'B', 40, 'apple', 12, 'banana', 28, 'cherry'];
-                this.animationQueue = keys;
-                this.currentStep = 0;
-                this.isPlaying = true;
-                
-                document.getElementById('playBtn').disabled = true;
-                document.getElementById('pauseBtn').disabled = false;
-                
-                for (let key of keys) {
-                    if (!this.isPlaying) break;
-                    await this.animateInsert(key);
-                    await this.sleep(this.animationSpeed);
-                }
-                
-                this.isPlaying = false;
-                document.getElementById('playBtn').disabled = false;
-                document.getElementById('pauseBtn').disabled = true;
+            applyLayoutAndDrawEdges(root);
+            
+            // Set SVG size to cover the entire tree structure
+            const totalTreeHeight = maxDepth * (NODE_HEIGHT + VERTICAL_SPACING) + NODE_HEIGHT + PADDING_X;
+            svg.style.height = `${totalTreeHeight}px`;
+            
+            // Adjust the SVG and Nodes Container width to match the calculated width
+            const nodesContainer = document.getElementById('treeNodesContainer');
+            nodesContainer.style.width = `${finalWidth + 2 * PADDING_X}px`;
+            svg.style.width = `${finalWidth + 2 * PADDING_X}px`;
+            
+            // Reset scroll/zoom
+            document.getElementById('treeContent').scrollLeft = 0;
+            document.getElementById('treeContent').scrollTop = 0;
+
+            updateDisplayInfo();
+        }
+
+        function renderNode(node) {
+            const nodeDiv = document.createElement('div');
+            nodeDiv.classList.add('tree-node');
+            nodeDiv.setAttribute('data-id', node.id);
+
+            const box = document.createElement('div');
+            box.classList.add('node-box');
+            if (node === bTree.root) {
+                box.classList.add('root');
             }
 
-            async generateDeleteSequence() {
-                // Mixed sequence for deletion
-                const keys = ['M', 25, 'A', 30, 15, 'Z', 'apple'];
-                this.animationQueue = keys;
-                this.currentStep = 0;
-                this.isPlaying = true;
+            node.keys.forEach(key => {
+                const keySpan = document.createElement('span');
+                keySpan.classList.add('node-key');
+                keySpan.textContent = key;
+                keySpan.setAttribute('data-key', key);
+                box.appendChild(keySpan);
+            });
+
+            nodeDiv.appendChild(box);
+
+            if (!node.isLeaf) {
+                const childrenDiv = document.createElement('div');
+                childrenDiv.classList.add('node-children');
                 
-                document.getElementById('playBtn').disabled = true;
-                document.getElementById('pauseBtn').disabled = false;
+                node.children.forEach(child => {
+                    childrenDiv.appendChild(renderNode(child));
+                });
                 
-                for (let key of keys) {
-                    if (!this.isPlaying) break;
-                    await this.animateDelete(key);
-                    await this.sleep(this.animationSpeed);
-                }
-                
-                this.isPlaying = false;
-                document.getElementById('playBtn').disabled = false;
-                document.getElementById('pauseBtn').disabled = true;
+                nodeDiv.appendChild(childrenDiv);
             }
 
-            sleep(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
-            }
+            return nodeDiv;
+        }
 
-            updateStatistics() {
-                document.getElementById('totalKeys').textContent = this.btree.getTotalKeys();
-                document.getElementById('treeHeight').textContent = this.btree.getHeight();
-                document.getElementById('nodeCount').textContent = this.btree.getNodeCount();
-            }
-
-            updatePseudocode(operation, data = null) {
-                const container = document.getElementById('pseudocode');
-                
-                let pseudocode = '';
-                
-                switch(operation) {
-                    case 'insert':
-                        pseudocode = `
-                            <div><span class="code-comment">// Inserting key: ${data}</span></div>
-                            <div><span class="code-keyword">function</span> <span class="code-function">INSERT</span>(key):</div>
-                            <div>  <span class="code-keyword">if</span> root <span class="code-keyword">is full</span>: split root</div>
-                            <div>  INSERT_NON_FULL(root, key)</div>
-                            <div>  <span class="code-keyword">if</span> node <span class="code-keyword">is full</span>: split node</div>
-                        `;
-                        break;
-                    case 'delete':
-                        pseudocode = `
-                            <div><span class="code-comment">// Deleting key: ${data}</span></div>
-                            <div><span class="code-keyword">function</span> <span class="code-function">DELETE</span>(key):</div>
-                            <div>  DELETE_FROM_NODE(root, key)</div>
-                            <div>  <span class="code-keyword">if</span> node.keys < MIN_KEYS:</div>
-                            <div>    borrow <span class="code-keyword">or</span> merge with sibling</div>
-                        `;
-                        break;
-                }
-                
-                container.innerHTML = pseudocode;
-            }
-
-            addStep(type, title, description) {
-                const container = document.getElementById('operationSteps');
-                const stepId = 'step-' + Date.now();
-                
-                let icon = '';
-                switch(type) {
-                    case 'start': icon = 'fa-play'; break;
-                    case 'complete': icon = 'fa-check'; break;
-                    case 'split': icon = 'fa-code-branch'; break;
-                    case 'merge': icon = 'fa-compress'; break;
-                    case 'borrow': icon = 'fa-exchange-alt'; break;
-                }
-                
-                const stepHtml = `
-                    <div id="${stepId}" class="step-item">
-                        <div class="step-icon">
-                            <i class="fas ${icon}" style="font-size: 10px;"></i>
-                        </div>
-                        <div class="step-content">
-                            <div class="step-title">${title}</div>
-                            <div class="step-description">${description}</div>
-                        </div>
-                    </div>
-                `;
-                
-                container.insertAdjacentHTML('afterbegin', stepHtml);
-                
-                // Keep only last 8 steps
-                const steps = container.querySelectorAll('.step-item');
-                if (steps.length > 8) {
-                    steps[steps.length - 1].remove();
-                }
-            }
-
-            showNotification(message, type = 'info') {
-                const notification = document.createElement('div');
-                notification.className = `notification ${type}`;
-                notification.textContent = message;
-                
-                document.body.appendChild(notification);
-                
+        function highlightNode(nodeId, className = 'highlighted', duration = 1000) {
+            const nodeEl = document.querySelector(`.tree-node[data-id="${nodeId}"] .node-box`);
+            if (nodeEl) {
+                nodeEl.classList.add(className);
                 setTimeout(() => {
-                    notification.style.opacity = '0';
-                    setTimeout(() => notification.remove(), 300);
-                }, 3000);
+                    nodeEl.classList.remove(className);
+                }, duration);
             }
-
-            highlightComplexity(operation) {
-                const panel = document.getElementById('complexityPanel');
-                panel.classList.add('highlight-complexity');
-                
-                setTimeout(() => {
-                    panel.classList.remove('highlight-complexity');
-                }, 2000);
-            }
-
-            updateComplexityInfo() {
-                const totalKeys = this.btree.getTotalKeys();
-                const height = this.btree.getHeight();
-                
-                // Update complexity explanation with current tree stats
-                const explanation = document.querySelector('.complexity-explanation');
-                if (explanation) {
-                    explanation.innerHTML = `
-                        <strong>Why O(logₜ n)?</strong> B-trees maintain balance by ensuring all leaf nodes are at the same depth. 
-                        With minimum degree t=${MIN_DEGREE}, each internal node (except root) has between ${MIN_KEYS} and ${MAX_KEYS} keys, 
-                        guaranteeing logarithmic height. Current tree: ${totalKeys} keys, height ${height}.
-                    `;
+        }
+        
+        function highlightKey(nodeId, key, className = 'new', duration = 1000) {
+            const nodeEl = document.querySelector(`.tree-node[data-id="${nodeId}"]`);
+            if (nodeEl) {
+                const keyEl = nodeEl.querySelector(`.node-key[data-key="${key}"]`);
+                if (keyEl) {
+                    keyEl.classList.add(className);
+                    setTimeout(() => {
+                        keyEl.classList.remove(className);
+                    }, duration);
                 }
             }
         }
-
-        // Global Animation Controller
-        let animationController = new AnimationController();
-
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', () => {
-            // Speed control
-            document.getElementById('speedSlider').addEventListener('input', (e) => {
-                animationController.animationSpeed = parseFloat(e.target.value) * 1000;
-                document.getElementById('speedValue').textContent = e.target.value + 's';
-            });
-
-            // Enter key support
-            document.getElementById('keyInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    insertKey();
-                }
-            });
-
-            document.getElementById('deleteInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    deleteKey();
-                }
-            });
-        });
-
-        // Control Functions
-        async function insertKey() {
-            const input = document.getElementById('keyInput');
-            const value = input.value.trim();
+        
+        function highlightEdge(parentId, childId, className = 'highlighted', duration = 1000) {
+            const edgeEl = document.getElementById(`edge-${parentId}-${childId}`);
+            if (edgeEl) {
+                edgeEl.classList.add(className);
+                setTimeout(() => {
+                    edgeEl.classList.remove(className);
+                }, duration);
+            }
+        }
+        
+        function updatePseudocode(codeLines) {
+            const pseudocodeEl = document.getElementById('pseudocode');
+            pseudocodeEl.innerHTML = codeLines.map(line => {
+                // Simple colorizer (expandable if needed)
+                if (line.includes('//')) return `<div><span class="code-comment">${line}</span></div>`;
+                if (line.includes('function')) return `<div><span class="code-keyword">function</span> <span class="code-function">${line.replace('function ', '')}</span></div>`;
+                if (line.includes('if')) return `<div><span class="code-keyword">${line}</span></div>`;
+                if (line.includes('else')) return `<div><span class="code-keyword">${line}</span></div>`;
+                if (line.includes('RETURN')) return `<div><span class="code-keyword">${line}</span></div>`;
+                if (line.includes('CALL')) return `<div><span class="code-function">${line}</span></div>`;
+                return `<div>${line.replace(/([0-9]+)/g, '<span class="code-number">$1</span>').replace(/KEY|NODE|CHILD/g, '<span class="code-variable">$&</span>')}</div>`;
+            }).join('');
+        }
+        
+        function addStep(title, description, isActive = true) {
+            const stepsContainer = document.getElementById('operationSteps');
             
-            if (value === '') {
-                animationController.showNotification('Please enter a value', 'error');
-                return;
-            }
+            // Remove active class from previous steps
+            Array.from(stepsContainer.children).forEach(step => step.classList.remove('active'));
 
-            // Parse the input - try number first, otherwise use as string
-            let key;
-            // Check if it's a pure number (no decimal points)
-            if (/^-?\d+$/.test(value)) {
-                // It's a number
-                key = parseInt(value);
-            } else {
-                // It's a string/letter/word
-                key = value;
-            }
-
-            await animationController.animateInsert(key);
-            input.value = '';
+            const stepDiv = document.createElement('div');
+            stepDiv.classList.add('step-item');
+            if (isActive) stepDiv.classList.add('active');
+            
+            const stepIcon = document.createElement('div');
+            stepIcon.classList.add('step-icon');
+            stepIcon.innerHTML = `<i class="fas fa-arrow-right" style="font-size: 10px;"></i>`;
+            
+            const stepContent = document.createElement('div');
+            stepContent.classList.add('step-content');
+            
+            const stepTitle = document.createElement('div');
+            stepTitle.classList.add('step-title');
+            stepTitle.textContent = title;
+            
+            const stepDescription = document.createElement('div');
+            stepDescription.classList.add('step-description');
+            stepDescription.textContent = description;
+            
+            stepContent.appendChild(stepTitle);
+            stepContent.appendChild(stepDescription);
+            stepDiv.appendChild(stepIcon);
+            stepDiv.appendChild(stepContent);
+            
+            stepsContainer.appendChild(stepDiv);
+            stepsContainer.scrollTop = stepsContainer.scrollHeight; // Auto-scroll to latest step
+        }
+        
+        function clearSteps() {
+            document.getElementById('operationSteps').innerHTML = `<div class="step-item">
+                <div class="step-icon">
+                    <i class="fas fa-info" style="font-size: 10px;"></i>
+                </div>
+                <div class="step-content">
+                    <div class="step-title">Ready</div>
+                    <div class="step-description">Start inserting or deleting keys to see detailed steps...</div>
+                </div>
+            </div>`;
         }
 
-        async function deleteKey() {
-            const input = document.getElementById('deleteInput');
-            const value = input.value.trim();
+
+        // --- Animation Management (FSM) ---
+
+        function setAnimationControls(isPlaying) {
+            document.getElementById('playBtn').disabled = isPlaying || animationQueue.length === 0;
+            document.getElementById('pauseBtn').disabled = !isPlaying;
+            document.getElementById('stepBtn').disabled = isPlaying || animationQueue.length === 0;
             
-            if (value === '') {
-                animationController.showNotification('Please enter a value', 'error');
-                return;
-            }
+            const manualInputs = [
+                document.getElementById('keyInput'),
+                document.getElementById('deleteInput'),
+                document.getElementById('orderSelect'),
+            ];
+            
+            const manualButtons = [
+                document.querySelector('button[onclick="insertKey()"]'),
+                document.querySelector('button[onclick="deleteKey()"]'),
+                document.querySelector('button[onclick="generateInsertSequence()"]'),
+                document.querySelector('button[onclick="generateDeleteSequence()"]'),
+                document.querySelector('button[onclick="generateRandomTree()"]'),
+                document.querySelector('button[onclick="clearTree()"]'),
+            ];
 
-            // Parse the input - try number first, otherwise use as string
-            let key;
-            // Check if it's a pure number (no decimal points)
-            if (/^-?\d+$/.test(value)) {
-                // It's a number
-                key = parseInt(value);
-            } else {
-                // It's a string/letter/word
-                key = value;
-            }
-
-            await animationController.animateDelete(key);
-            input.value = '';
+            const disableControls = isPlaying || animationQueue.length > 0;
+            manualInputs.forEach(input => input.disabled = disableControls);
+            manualButtons.forEach(button => button.disabled = disableControls);
         }
 
         function playAnimation() {
-            animationController.generateInsertSequence();
+            if (isAnimating) return;
+            isAnimating = true;
+            setAnimationControls(true);
+            processAnimationStep();
         }
 
         function pauseAnimation() {
-            animationController.isPlaying = false;
-            document.getElementById('playBtn').disabled = false;
-            document.getElementById('pauseBtn').disabled = true;
+            isAnimating = false;
+            setAnimationControls(false);
+            showNotification('Animation Paused', 'info', 1500);
         }
 
         function stepForward() {
-            // Implementation for step-by-step animation
-            animationController.showNotification('Step forward feature coming soon!', 'info');
+            if (isAnimating || animationQueue.length === 0) return;
+            // Process one step without setting the isAnimating flag to true
+            processAnimationStep(true); 
         }
 
-        function resetAnimation() {
-            animationController = new AnimationController();
-            animationController.visualizeTree();
-            animationController.updateStatistics();
-            animationController.showNotification('Animation reset', 'info');
+        function processAnimationStep(isManualStep = false) {
+            if (animationQueue.length === 0) {
+                isAnimating = false;
+                setAnimationControls(false);
+                document.getElementById('lastOp').textContent = 'Complete';
+                showNotification('Operation Complete!', 'success', 2000);
+                return;
+            }
+
+            if (isAnimating || isManualStep) {
+                const step = animationQueue.shift();
+                executeAnimationStep(step);
+                
+                if (isAnimating) {
+                    setTimeout(() => {
+                        processAnimationStep();
+                    }, animationSpeed);
+                } else if (animationQueue.length > 0) {
+                    setAnimationControls(false); // Re-enable step/play after a manual step
+                } else {
+                    // Last step in manual mode
+                    isAnimating = false;
+                    setAnimationControls(false);
+                    document.getElementById('lastOp').textContent = 'Complete';
+                    showNotification('Operation Complete!', 'success', 2000);
+                }
+            } else {
+                setAnimationControls(false);
+            }
         }
 
-        function generateInsertSequence() {
-            animationController.generateInsertSequence();
+        function executeAnimationStep(step) {
+            let duration = animationSpeed * 0.8;
+            
+            // Clear all temporary highlights
+            document.querySelectorAll('.node-box').forEach(el => el.classList.remove('highlighted', 'splitting', 'merging'));
+            document.querySelectorAll('.node-key').forEach(el => el.classList.remove('new', 'deleting', 'promoting', 'demoting', 'borrowed'));
+            document.querySelectorAll('.tree-edge').forEach(el => el.classList.remove('highlighted'));
+
+            switch (step.type) {
+                // --- INSERTION STEPS ---
+                case 'new_root':
+                    renderTree(bTree.root);
+                    highlightNode(step.node.id, 'root', duration);
+                    addStep('Insert Root', `The tree is empty. Key ${step.key} becomes the first (root) key.`, true);
+                    document.getElementById('lastOp').textContent = `Insert ${step.key}`;
+                    updatePseudocode([
+                        `// Insert ${step.key}`,
+                        `KEY = ${step.key}`,
+                        `if (ROOT == null)`,
+                        `  ROOT = new NODE(${step.key})`,
+                        `  RETURN`
+                    ]);
+                    break;
+                case 'traverse_insert':
+                    renderTree(bTree.root);
+                    highlightNode(step.node.id, 'highlighted', duration);
+                    if (!step.node.isLeaf) highlightEdge(step.node.id, step.node.children[step.childIndex].id, 'highlighted', duration);
+                    addStep('Traverse Down', `Searching for leaf node to insert ${step.key}. Descending via child pointer ${step.childIndex}.`, true);
+                    updatePseudocode([
+                        `// Inserting ${step.key}`,
+                        `KEY = ${step.key}`,
+                        `// 1. Find child pointer C[i] to follow`,
+                        `i = NODE.findKeyIndex(KEY)`,
+                        `if (NODE.C[i] is full)`,
+                        `  CALL splitChild(NODE, i)`,
+                        `// Continue search/insert in correct child`
+                    ]);
+                    break;
+                case 'split_child_start':
+                    highlightNode(step.child.id, 'splitting', duration);
+                    addStep('Node Full: Split Required', `Child node is full (Max ${MAX_KEYS} keys). Preparing to split child node ${step.child.keys.join(',')}.`, true);
+                    document.getElementById('lastOp').textContent = `Split on Insert`;
+                    updatePseudocode([
+                        `// Split required at NODE ${step.child.keys.join(',')}`,
+                        `CALL splitChild(PARENT, i)`,
+                        `// Split Child(P, i):`,
+                        `// 1. Create new sibling NODE`,
+                        `// 2. Move median key P.K[i] up to PARENT`,
+                        `// 3. Redistribute keys/children between child and new sibling`
+                    ]);
+                    break;
+                case 'split_complete':
+                    renderTree(bTree.root);
+                    highlightNode(step.parent.id, 'highlighted', duration * 2);
+                    highlightKey(step.parent.id, step.promotedKey, 'promoting', duration * 2);
+                    addStep('Split Complete', `Key ${step.promotedKey} promoted to parent node. Node split into two: ${step.fullChild.keys.join(',')} and ${step.newNode.keys.join(',')}.`, true);
+                    break;
+                case 're_traverse':
+                    renderTree(bTree.root);
+                    highlightNode(step.node.id, 'highlighted', duration);
+                    highlightEdge(step.node.id, step.node.children[step.childIndex].id, 'highlighted', duration);
+                    addStep('Re-Traverse', `After split, key ${step.key} belongs in the newly created right sibling. Descending right.`, true);
+                    break;
+                case 'inserted_leaf':
+                    renderTree(bTree.root);
+                    highlightNode(step.node.id, 'success', duration);
+                    highlightKey(step.node.id, step.key, 'new', duration);
+                    addStep('Key Inserted', `Key ${step.key} inserted into leaf node at index ${step.index}.`, true);
+                    updatePseudocode([
+                        `// Key ${step.key} inserted`,
+                        `if (NODE is leaf)`,
+                        `  NODE.keys.insert(${step.key}, i)`,
+                        `  RETURN`
+                    ]);
+                    break;
+                
+                // --- DELETION STEPS ---
+                case 'found_for_delete':
+                    highlightNode(step.node.id, 'warning', duration);
+                    document.getElementById('lastOp').textContent = `Delete ${step.key}`;
+                    addStep('Found Key', `Found key ${step.key} to be deleted in node ${step.node.keys.join(',')}.`, true);
+                    updatePseudocode([
+                        `// Delete ${step.key}`,
+                        `KEY = ${step.key}`,
+                        `// 1. Search for KEY`,
+                        `if (NODE.K[i] == KEY)`,
+                        `  if (NODE is leaf) // Case 1a`,
+                        `    NODE.keys.remove(i)`,
+                        `  else // Case 1b`,
+                        `    CALL handleInternalDelete(NODE, i)`
+                    ]);
+                    break;
+                case 'deleted_leaf':
+                    renderTree(bTree.root); // Rerender to show removal
+                    highlightNode(step.node.id, 'danger', duration);
+                    addStep('Key Removed (Leaf)', `Key ${step.key} removed from leaf node.`, true);
+                    break;
+                case 'traverse_delete':
+                    renderTree(bTree.root);
+                    highlightNode(step.node.id, 'highlighted', duration);
+                    highlightEdge(step.node.id, step.node.children[step.childIndex].id, 'highlighted', duration);
+                    addStep('Traverse Down', `Searching for key ${step.key} in the subtree. Descending via child pointer ${step.childIndex}.`, true);
+                    updatePseudocode([
+                        `// 2. If NODE is internal: descend`,
+                        `CHILD = NODE.C[i]`,
+                        `if (CHILD.keys.length == t-1)`,
+                        `  CALL handleDeficientChild(NODE, i)`,
+                        `CALL deleteKeyFromNode(CHILD, KEY)`
+                    ]);
+                    break;
+                case 'predecessor_swap':
+                    renderTree(bTree.root);
+                    highlightKey(step.node.id, step.key, 'deleting', duration);
+                    highlightKey(step.node.id, step.predecessor, 'borrowed', duration);
+                    addStep('Swap with Predecessor', `Key ${step.key} swapped with its predecessor (${step.predecessor}) from the left child's leaf node.`, true);
+                    break;
+                case 'successor_swap':
+                    renderTree(bTree.root);
+                    highlightKey(step.node.id, step.key, 'deleting', duration);
+                    highlightKey(step.node.id, step.successor, 'borrowed', duration);
+                    addStep('Swap with Successor', `Key ${step.key} swapped with its successor (${step.successor}) from the right child's leaf node.`, true);
+                    break;
+                case 'merge_children_start':
+                    highlightNode(step.leftChild.id, 'merging', duration);
+                    highlightNode(step.rightChild.id, 'merging', duration);
+                    highlightKey(step.parent.id, step.key, 'demoting', duration);
+                    addStep('Internal Merge Required', `Key ${step.key} is internal, but both children are minimal. Key ${step.key} will be pushed down, and children will merge.`, true);
+                    break;
+                case 'deficient_child':
+                    highlightNode(step.child.id, 'danger', duration);
+                    addStep('Deficient Child Detected', `Child node ${step.child.keys.join(',')} is deficient (only ${step.child.keys.length} keys). Attempting restructure.`, true);
+                    break;
+                case 'borrow_left_start':
+                    highlightNode(step.child.id, 'highlighted', duration);
+                    highlightNode(step.leftSibling.id, 'highlighted', duration);
+                    addStep('Borrow from Left', `Left sibling has enough keys (${step.leftSibling.keys.length}). Borrowing largest key, demoting parent key.`, true);
+                    break;
+                case 'borrow_left_end':
+                    renderTree(bTree.root);
+                    highlightNode(step.child.id, 'success', duration);
+                    highlightKey(step.child.id, step.parentKey, 'demoting', duration);
+                    highlightKey(step.parent.id, step.borrowedKey, 'promoting', duration);
+                    addStep('Borrow Complete', `Sibling key ${step.borrowedKey} promoted. Parent key ${step.parentKey} demoted. Child is no longer deficient.`, true);
+                    break;
+                case 'merge_left_start':
+                    highlightNode(step.child.id, 'merging', duration);
+                    highlightNode(step.leftSibling.id, 'merging', duration);
+                    addStep('Merge Left', `Left sibling is minimal. Merging deficient child into left sibling, pulling down parent key.`, true);
+                    break;
+                case 'merge_right_start':
+                    highlightNode(step.child.id, 'merging', duration);
+                    highlightNode(step.rightSibling.id, 'merging', duration);
+                    addStep('Merge Right', `Right sibling is minimal. Merging deficient child with right sibling, pulling down parent key.`, true);
+                    break;
+                case 'merged_complete':
+                    renderTree(bTree.root);
+                    highlightNode(step.left.id, 'success', duration);
+                    highlightKey(step.left.id, step.medianKey, 'demoting', duration);
+                    addStep('Merge Complete', `Node ${step.right.keys.join(',')} merged into ${step.left.keys.join(',')}. Parent key ${step.medianKey} absorbed.`, true);
+                    break;
+                case 'root_collapsed':
+                    renderTree(bTree.root);
+                    highlightNode(step.newRoot.id, 'root', duration);
+                    addStep('Root Collapse', `Old root had 0 keys. The tree height reduced. New root is ${step.newRoot.keys.join(',')}.`, true);
+                    break;
+                case 'tree_cleared':
+                    renderTree(null);
+                    clearSteps();
+                    showNotification('Tree Cleared', 'success', 2000);
+                    break;
+
+                // --- SEARCH STEPS ---
+                case 'search_traverse':
+                    renderTree(bTree.root);
+                    highlightNode(step.node.id, 'highlighted', duration);
+                    highlightEdge(step.node.id, step.node.children[step.childIndex].id, 'highlighted', duration);
+                    addStep('Search Traverse', `Key ${step.key} is between node keys. Descending via child pointer ${step.childIndex}.`, true);
+                    break;
+                case 'search_hit':
+                    renderTree(bTree.root);
+                    highlightNode(step.node.id, 'warning', duration * 2);
+                    highlightKey(step.node.id, step.key, 'new', duration * 2);
+                    addStep('Search Hit!', `Key ${step.key} found in node ${step.node.keys.join(',')} at index ${step.index}.`, true);
+                    document.getElementById('lastOp').textContent = `Search ${step.key} (Found)`;
+                    break;
+                case 'search_miss_leaf':
+                    renderTree(bTree.root);
+                    highlightNode(step.node.id, 'danger', duration * 2);
+                    addStep('Search Miss', `Key ${step.key} not found in this leaf node. Search complete.`, true);
+                    document.getElementById('lastOp').textContent = `Search ${step.key} (Miss)`;
+                    break;
+
+                default:
+                    console.log("Unhandled step:", step);
+                    break;
+            }
+            
+            // Re-render and update stats after every change step
+            if (step.type.includes('insert') || step.type.includes('delete') || step.type.includes('split') || step.type.includes('merge') || step.type.includes('borrow') || step.type.includes('collapse') || step.type.includes('clear')) {
+                // Ensure tree is fully rendered *before* the next step
+                // For steps that don't involve structural change (like highlight/traverse), we use the previous render.
+                if (!step.type.includes('traverse') && !step.type.includes('search')) {
+                    renderTree(bTree.root);
+                }
+            }
+
+            // If manually stepping, pause after executing
+            if (isManualStep) {
+                isAnimating = false;
+                setAnimationControls(false);
+            }
         }
 
-        function generateDeleteSequence() {
-            animationController.generateDeleteSequence();
+
+        // --- User Interaction Functions ---
+
+        function changeTreeOrder() {
+            if (bTree && bTree.totalKeys > 0) {
+                showNotification('Please clear the tree before changing the degree (t).', 'error');
+                document.getElementById('orderSelect').value = MIN_DEGREE;
+                return;
+            }
+            const degree = document.getElementById('orderSelect').value;
+            MIN_DEGREE = parseInt(degree);
+            MAX_KEYS = 2 * MIN_DEGREE - 1;
+            MIN_KEYS = MIN_DEGREE - 1;
+            
+            // Re-init tree instance if it exists
+            if (bTree) {
+                bTree.init(MIN_DEGREE);
+                renderTree(null);
+                clearSteps();
+                document.getElementById('lastOp').textContent = 'None';
+            }
+            
+            updateDisplayInfo();
+            showNotification(`B-Tree degree changed to t=${MIN_DEGREE}.`, 'info');
+        }
+
+        function insertKey() {
+            const input = document.getElementById('keyInput');
+            const key = input.value;
+            input.value = ''; // Clear input immediately
+            
+            if (!key) {
+                showNotification('Please enter a key to insert.', 'error');
+                return;
+            }
+            
+            if (bTree === null) {
+                bTree = new BTree();
+                bTree.init(MIN_DEGREE);
+            }
+            
+            const steps = bTree.insert(key);
+            if (steps.length > 0) {
+                animationQueue = animationQueue.concat(steps);
+                playAnimation();
+            }
+        }
+
+        function deleteKey() {
+            const input = document.getElementById('deleteInput');
+            const key = input.value;
+            input.value = ''; // Clear input immediately
+            
+            if (!bTree || bTree.totalKeys === 0) {
+                showNotification('The tree is empty.', 'error');
+                return;
+            }
+            
+            if (!key) {
+                showNotification('Please enter a key to delete.', 'error');
+                return;
+            }
+            
+            const steps = bTree.delete(key);
+            if (steps.length > 0) {
+                animationQueue = animationQueue.concat(steps);
+                playAnimation();
+            }
         }
 
         function clearTree() {
-            animationController.btree = new BTree();
-            animationController.visualizeTree();
-            animationController.updateStatistics();
-            animationController.showNotification('Tree cleared', 'info');
-            document.getElementById('lastOp').textContent = 'Clear';
+            if (bTree) {
+                bTree.clear();
+            } else {
+                bTree = new BTree();
+                bTree.init(MIN_DEGREE);
+            }
+            animationQueue = [];
+            isAnimating = false;
+            renderTree(null);
+            clearSteps();
+            document.getElementById('lastOp').textContent = 'None';
+            setAnimationControls(false);
+            showNotification('B-Tree has been reset.', 'success');
         }
 
         function generateRandomTree() {
             clearTree();
-            const keys = [];
+            bTree = new BTree();
+            bTree.init(MIN_DEGREE);
             
-            // Generate mixed random data: numbers, letters, and words
-            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-            const words = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape'];
+            const count = Math.floor(Math.random() * (KEY_COUNT_LIMIT - MIN_KEYS)) + MIN_KEYS; // 2 to 50 keys
+            const randomKeys = new Set();
+            while (randomKeys.size < count) {
+                randomKeys.add(Math.floor(Math.random() * 1000));
+            }
+
+            Array.from(randomKeys).sort((a, b) => a - b).forEach(key => {
+                const steps = bTree.insert(key);
+                animationQueue = animationQueue.concat(steps);
+            });
             
-            for (let i = 0; i < 15; i++) {
-                const randomType = Math.floor(Math.random() * 3);
-                if (randomType === 0) {
-                    // Add a number
-                    keys.push(Math.floor(Math.random() * 100) + 1);
-                } else if (randomType === 1) {
-                    // Add a letter
-                    keys.push(letters[Math.floor(Math.random() * letters.length)]);
-                } else {
-                    // Add a word
-                    keys.push(words[Math.floor(Math.random() * words.length)]);
-                }
+            document.getElementById('lastOp').textContent = `Auto-Insert (${count} keys)`;
+            showNotification(`Auto-inserting ${count} random keys...`, 'info');
+            playAnimation();
+        }
+
+        function generateInsertSequence() {
+            clearTree();
+            bTree = new BTree();
+            bTree.init(MIN_DEGREE);
+            
+            const keys = [10, 20, 30, 40, 50, 60, 70, 80, 5, 25, 45, 65, 85, 35, 75];
+            keys.forEach(key => {
+                const steps = bTree.insert(key);
+                animationQueue = animationQueue.concat(steps);
+            });
+            
+            document.getElementById('lastOp').textContent = `Auto-Insert Sequence`;
+            showNotification('Auto-inserting a defined sequence...', 'info');
+            playAnimation();
+        }
+
+        function generateDeleteSequence() {
+            if (!bTree || bTree.totalKeys === 0) {
+                showNotification('Please insert keys first to generate a deletion sequence.', 'error');
+                return;
             }
             
-            // Sort using the B-Tree comparison logic
-            keys.sort((a, b) => {
-                if (typeof a === 'number' && typeof b === 'number') {
-                    return a - b;
+            const keysToDelete = [...bTree.nodes[bTree.root.id].keys]; // Start with current root keys
+            
+            // Get all keys from the tree (in-order traversal)
+            const allKeys = [];
+            function inOrder(node) {
+                if (!node) return;
+                for (let i = 0; i < node.keys.length; i++) {
+                    if (node.children[i]) inOrder(node.children[i]);
+                    allKeys.push(node.keys[i]);
                 }
-                if (typeof a === 'string' && typeof b === 'string') {
-                    return a.localeCompare(b);
-                }
-                return String(a).localeCompare(String(b));
+                if (node.children[node.keys.length]) inOrder(node.children[node.keys.length]);
+            }
+            inOrder(bTree.root);
+            
+            // Randomly select half the keys to delete
+            const keysToSelect = Math.min(Math.ceil(allKeys.length / 2), 15);
+            const deleteSet = new Set();
+            while(deleteSet.size < keysToSelect && allKeys.length > 0) {
+                const randomIndex = Math.floor(Math.random() * allKeys.length);
+                deleteSet.add(allKeys.splice(randomIndex, 1)[0]);
+            }
+            
+            Array.from(deleteSet).forEach(key => {
+                const steps = bTree.delete(key);
+                animationQueue = animationQueue.concat(steps);
             });
             
-            keys.forEach(key => {
-                animationController.btree.insert(key);
-            });
-            
-            animationController.visualizeTree();
-            animationController.updateStatistics();
-            animationController.showNotification('Random mixed tree generated', 'success');
-            document.getElementById('lastOp').textContent = 'Random';
+            document.getElementById('lastOp').textContent = `Auto-Delete Sequence`;
+            showNotification(`Auto-deleting ${deleteSet.size} random keys...`, 'info');
+            playAnimation();
+        }
+        
+        // --- Zoom Functions ---
+
+        function updateZoom(factor) {
+            currentZoom = Math.min(Math.max(0.5, currentZoom * factor), 2.0); // Limit zoom range
+            document.getElementById('treeNodesContainer').style.transform = `scale(${currentZoom})`;
         }
 
         function zoomIn() {
-            animationController.zoomLevel = Math.min(animationController.zoomLevel + 0.1, 2);
-            document.getElementById('treeContent').style.transform = `scale(${animationController.zoomLevel})`;
-            setTimeout(() => animationController.drawEdges(), 50);
+            updateZoom(1.1);
         }
 
         function zoomOut() {
-            animationController.zoomLevel = Math.max(animationController.zoomLevel - 0.1, 0.5);
-            document.getElementById('treeContent').style.transform = `scale(${animationController.zoomLevel})`;
-            setTimeout(() => animationController.drawEdges(), 50);
+            updateZoom(0.9);
         }
 
         function resetZoom() {
-            animationController.zoomLevel = 1;
-            document.getElementById('treeContent').style.transform = `scale(${animationController.zoomLevel})`;
-            setTimeout(() => animationController.drawEdges(), 50);
+            currentZoom = 1.0;
+            document.getElementById('treeNodesContainer').style.transform = `scale(${currentZoom})`;
         }
-
-        function changeTreeOrder() {
-            const select = document.getElementById('orderSelect');
-            const newDegree = parseInt(select.value);
-            
-            // Update global constants
-            MIN_DEGREE = newDegree;
-            MAX_KEYS = 2 * MIN_DEGREE - 1;
-            MIN_KEYS = MIN_DEGREE - 1;
-            
-            // Update info display
-            document.getElementById('orderInfo').textContent = 
-                `Current: t=${MIN_DEGREE}, Min keys=${MIN_KEYS}, Max keys=${MAX_KEYS}`;
-            
-            // Update header to show current order
-            document.getElementById('currentDegree').textContent = MIN_DEGREE;
-            document.getElementById('maxKeysDisplay').textContent = MAX_KEYS;
-            document.getElementById('minKeysDisplay').textContent = MIN_KEYS;
-            
-            // Clear and recreate tree with new order
-            clearTree();
-            
-            animationController.showNotification(`B-Tree order changed to t=${MIN_DEGREE}`, 'success');
-            animationController.updateComplexityInfo();
-        }
-
+        
+        // --- Theme Toggle ---
+        
         function toggleTheme() {
-            animationController.isDarkTheme = !animationController.isDarkTheme;
-            if (animationController.isDarkTheme) {
-                document.body.style.background = 'linear-gradient(135deg, #1e293b 0%, #334155 100%)';
-            } else {
+            const root = document.documentElement;
+            const isDark = root.style.getPropertyValue('--dark-mode') === 'true';
+            
+            if (isDark) {
+                root.style.removeProperty('--dark-mode');
+                // Set light mode styles
                 document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            } else {
+                root.style.setProperty('--dark-mode', 'true');
+                // Set dark mode styles
+                root.style.setProperty('--primary', '#818cf8');
+                root.style.setProperty('--primary-dark', '#6366f1');
+                root.style.setProperty('--secondary', '#a78bfa');
+                root.style.setProperty('--success', '#34d399');
+                root.style.setProperty('--warning', '#fbbf24');
+                root.style.setProperty('--danger', '#f87171');
+                root.style.setProperty('--dark', '#f8fafc');
+                root.style.setProperty('--light', '#1f2937');
+                root.style.setProperty('--border', '#374151');
+                document.body.style.background = 'linear-gradient(135deg, #1f2937 0%, #111827 100%)';
+                document.querySelectorAll('.panel').forEach(p => p.style.backgroundColor = '#1f2937');
+                document.querySelectorAll('.panel-header').forEach(p => p.style.borderBottomColor = '#374151');
+                document.querySelectorAll('.stat-card').forEach(p => p.style.background = 'linear-gradient(135deg, #1f2937 0%, #374151 100%)');
+                document.querySelectorAll('.panel-title').forEach(p => p.style.color = '#f8fafc');
+                document.querySelectorAll('.form-label').forEach(p => p.style.color = '#f8fafc');
             }
         }
+
+
+        // --- Initialization ---
+
+        window.onload = () => {
+            bTree = new BTree();
+            bTree.init(MIN_DEGREE);
+            updateSpeedDisplay(document.getElementById('speedSlider').value);
+            document.getElementById('speedSlider').oninput = (e) => updateSpeedDisplay(e.target.value);
+        };
     </script>
 </body>
 </html>
