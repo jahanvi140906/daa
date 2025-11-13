@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B-Tree Advanced Visualization | t=3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+            overflow-x: hidden;
+        }
+
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 350px 1fr 300px;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            max-width: 1800px;
+            margin: 0 auto;
+            height: calc(100vh - 80px);
+        }
+
+        .panel {
+            background: var(--light);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .tree-container {
+            background: var(--light);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: auto;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tree-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .tree-content {
+            flex: 1;
+            position: relative;
+            min-height: 600px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 2rem;
+            overflow: visible;
+        }
+
+        .tree-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .tree-nodes {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+        }
+
+        .tree-node {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 15px;
+            position: relative;
+        }
+
+        .node-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            min-width: 60px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .node-box.root {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .node-box.highlighted {
+            background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+            box-shadow: 0 12px 35px rgba(245, 158, 11, 0.5);
+            transform: scale(1.1);
+        }
+
+        .node-box.splitting {
+            animation: nodeSplit 1s ease-in-out;
+        }
+
+        @keyframes nodeSplit {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); opacity: 0.7; }
+        }
+
+        .node-box.merging {
+            animation: nodeMerge 1s ease-in-out;
+        }
+
+        @keyframes nodeMerge {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.8); opacity: 0.7; }
+            100% { transform: scale(1); }
+        }
+
+        .node-key {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 6px;
+            margin: 0 2px;
+            transition: all 0.3s ease;
+        }
+
+        .node-key.new {
+            animation: keyAppear 0.8s ease-out;
+            background: rgba(16, 185, 129, 0.4);
+        }
+
+        .node-key.deleting {
+            animation: keyDisappear 0.8s ease-out;
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        .node-key.promoting {
+            animation: keyPromote 1s ease-in-out;
+            background: rgba(245, 158, 11, 0.6);
+        }
+
+        @keyframes keyAppear {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes keyDisappear {
+            from { transform: scale(1); opacity: 1; }
+            to { transform: scale(0); opacity: 0; }
+        }
+
+        @keyframes keyPromote {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .node-children {
+            display: flex;
+            justify-content: center;
+            margin-top: 50px;
+            gap: 15px;
+            position: relative;
+        }
+
+        .tree-edge {
+            stroke: var(--primary);
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+
+        .tree-edge.highlighted {
+            stroke: var(--warning);
+            stroke-width: 5;
+            filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.6));
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .animation-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .speed-control {
+            margin-top: 1rem;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+        }
+
+        .notification.info {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .stat-value {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 10px;
+            border-left: 3px solid var(--primary);
+            animation: stepSlideIn 0.3s ease-out;
+        }
+
+        @keyframes stepSlideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .step-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .step-description {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        .code-keyword { color: #c084fc; }
+        .code-function { color: #60a5fa; }
+        .code-string { color: #86efac; }
+        .code-comment { color: #64748b; }
+
+        .complexity-panel {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .complexity-title {
+            font-weight: 700;
+            color: #92400e;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .complexity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .complexity-item:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateX(4px);
+        }
+
+        .complexity-operation {
+            font-weight: 600;
+            color: #451a03;
+            font-size: 0.875rem;
+        }
+
+        .complexity-value {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .complexity-best {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .complexity-worst {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .complexity-average {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+
+        .big-o {
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            font-size: 1.1em;
+        }
+
+        .complexity-formula {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            margin-top: 0.75rem;
+            border-left: 3px solid #fbbf24;
+        }
+
+        .complexity-explanation {
+            font-size: 0.75rem;
+            color: #78350f;
+            margin-top: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .highlight-complexity {
+            animation: complexityPulse 2s ease-in-out;
+        }
+
+        @keyframes complexityPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); box-shadow: 0 8px 25px rgba(251, 191, 36, 0.4); }
+        }
+
+        @media (max-width: 1400px) {
+            .main-container {
+                grid-template-columns: 300px 1fr 280px;
+                gap: 1rem;
+                padding: 1rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .panel {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                    <i class="fas fa-sitemap text-indigo-600"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white">B-Tree Advanced Visualization</h1>
+                    <p class="text-white/80 text-sm">Interactive Operations with t=3 (Min Degree)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="toggleTheme()" class="btn btn-primary">
+                    <i class="fas fa-moon"></i>
+                    Theme
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- Left Panel - Controls -->
+        <aside class="panel">
+            <div class="panel-header">
+                <i class="fas fa-play-circle text-indigo-600"></i>
+                <h2 class="panel-title">Animation Controls</h2>
+            </div>
+
+            <div class="animation-controls">
+                <button id="playBtn" onclick="playAnimation()" class="btn btn-success">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button id="pauseBtn" onclick="pauseAnimation()" class="btn btn-warning" disabled>
+                    <i class="fas fa-pause"></i>
+                </button>
+                <button id="stepBtn" onclick="stepForward()" class="btn btn-primary">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+                <button id="resetBtn" onclick="resetAnimation()" class="btn btn-danger">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+
+            <div class="speed-control">
+                <label class="form-label">Animation Speed</label>
+                <input type="range" id="speedSlider" min="0.5" max="3" step="0.5" value="1.5" class="slider">
+                <div class="flex justify-between text-xs text-gray-500">
+                    <span>Slow</span>
+                    <span id="speedValue">1.5s</span>
+                    <span>Fast</span>
+                </div>
+            </div>
+
+            <div class="panel-header">
+                <i class="fas fa-cog text-indigo-600"></i>
+                <h2 class="panel-title">B-Tree Configuration</h2>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">B-Tree Order (Degree t)</label>
+                <select id="orderSelect" onchange="changeTreeOrder()" class="form-input">
+                    <option value="2">t=2 (Order 4) - Max 3 keys</option>
+                    <option value="3" selected>t=3 (Order 6) - Max 5 keys</option>
+                    <option value="4">t=4 (Order 8) - Max 7 keys</option>
+                    <option value="5">t=5 (Order 10) - Max 9 keys</option>
+                </select>
+                <div class="text-xs text-gray-500 mt-1">
+                    <span id="orderInfo">Current: t=3, Min keys=2, Max keys=5</span>
+                </div>
+            </div>
+
+            <div class="panel-header">
+                <i class="fas fa-plus-circle text-green-600"></i>
+                <h2 class="panel-title">Manual Operations</h2>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Insert Key</label>
+                <div class="flex gap-2">
+                    <input type="text" id="keyInput" placeholder="Enter any number or letter (e.g., 42, A, apple)" class="form-input">
+                    <button onclick="insertKey()" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Delete Key</label>
+                <div class="flex gap-2">
+                    <input type="text" id="deleteInput" placeholder="Enter any number or letter (e.g., 42, A, apple)" class="form-input">
+                    <button onclick="deleteKey()" class="btn btn-danger">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button onclick="generateInsertSequence()" class="btn btn-success">
+                    <i class="fas fa-layer-group"></i>
+                    Auto Insert
+                </button>
+                <button onclick="generateDeleteSequence()" class="btn btn-danger">
+                    <i class="fas fa-trash-alt"></i>
+                    Auto Delete
+                </button>
+                <button onclick="clearTree()" class="btn btn-warning">
+                    <i class="fas fa-broom"></i>
+                    Clear
+                </button>
+                <button onclick="generateRandomTree()" class="btn btn-primary">
+                    <i class="fas fa-dice"></i>
+                    Random
+                </button>
+            </div>
+        </aside>
+
+        <!-- Center - Tree Visualization -->
+        <section class="tree-container">
+            <div class="tree-header">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-project-diagram text-indigo-600"></i>
+                    <h2 class="panel-title">B-Tree Visualization (t=<span id="currentDegree">3</span>)</h2>
+                    <span class="text-sm text-gray-600">Max Keys: <span id="maxKeysDisplay">5</span>, Min Keys: <span id="minKeysDisplay">2</span></span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="zoomIn()" class="btn btn-primary">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button onclick="zoomOut()" class="btn btn-primary">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <button onclick="resetZoom()" class="btn btn-primary">
+                        <i class="fas fa-compress"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="treeContent" class="tree-content">
+                <svg id="treeSvg" class="tree-svg"></svg>
+                <div id="treeNodes" class="tree-nodes">
+                    <div class="text-center text-gray-500 mt-20">
+                        <i class="fas fa-sitemap text-6xl mb-4 opacity-50"></i>
+                        <p class="text-xl font-semibold">Empty B-Tree</p>
+                        <p class="text-sm mt-2">Click "Auto Insert" or manually insert keys to begin</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel - Information -->
+        <aside class="panel">
+            <div class="panel-header">
+                <i class="fas fa-info-circle text-blue-600"></i>
+                <h2 class="panel-title">Tree Statistics</h2>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalKeys">0</div>
+                    <div class="stat-label">Total Keys</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="treeHeight">0</div>
+                    <div class="stat-label">Tree Height</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="nodeCount">0</div>
+                    <div class="stat-label">Node Count</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="lastOp">None</div>
+                    <div class="stat-label">Last Operation</div>
+                </div>
+            </div>
+
+            <div class="panel-header">
+                <i class="fas fa-code text-indigo-600"></i>
+                <h2 class="panel-title">Current Operation</h2>
+            </div>
+
+            <div id="pseudocode" class="code-block">
+                <div><span class="code-comment">// Ready for operations</span></div>
+                <div><span class="code-keyword">function</span> <span class="code-function">START</span>():</div>
+                <div>  Insert or delete keys</div>
+                <div>  Watch animations</div>
+                <div>  Observe B-tree properties</div>
+            </div>
+
+            <div class="panel-header">
+                <i class="fas fa-list-ol text-purple-600"></i>
+                <h2 class="panel-title">Operation Steps</h2>
+            </div>
+
+            <div id="operationSteps">
+                <div class="step-item">
+                    <div class="step-icon">
+                        <i class="fas fa-info" style="font-size: 10px;"></i>
+                    </div>
+                    <div class="step-content">
+                        <div class="step-title">Ready</div>
+                        <div class="step-description">Start inserting or deleting keys to see detailed steps...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="complexity-panel" id="complexityPanel">
+                <div class="complexity-title">
+                    <i class="fas fa-chart-line text-amber-600"></i>
+                    Time Complexity Analysis
+                </div>
+                
+                <div class="complexity-item">
+                    <span class="complexity-operation">Search</span>
+                    <span class="complexity-value complexity-best"><span class="big-o">O</span>(logₜ n)</span>
+                </div>
+                
+                <div class="complexity-item">
+                    <span class="complexity-operation">Insert</span>
+                    <span class="complexity-value complexity-average"><span class="big-o">O</span>(logₜ n)</span>
+                </div>
+                
+                <div class="complexity-item">
+                    <span class="complexity-operation">Delete</span>
+                    <span class="complexity-value complexity-worst"><span class="big-o">O</span>(logₜ n)</span>
+                </div>
+                
+                <div class="complexity-formula">
+                    <div><span class="code-comment">// Where t = minimum degree (3)</span></div>
+                    <div><span class="code-comment">// n = number of keys in tree</span></div>
+                    <div><span class="code-comment">// Height h ≤ logₜ((n+1)/2)</span></div>
+                </div>
+                
+                <div class="complexity-explanation">
+                    <strong>Why O(logₜ n)?</strong> B-trees maintain balance by ensuring all leaf nodes are at the same depth. With minimum degree t=3, each internal node (except root) has between t-1 and 2t-1 keys, guaranteeing logarithmic height.
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        // B-Tree Implementation with configurable degree
+        let MIN_DEGREE = 3;
+        let MAX_KEYS = 2 * MIN_DEGREE - 1; // 5
+        let MIN_KEYS = MIN_DEGREE - 1; // 2
+
+        class BTreeNode {
+            constructor(isLeaf = true) {
+                this.keys = [];
+                this.children = [];
+                this.isLeaf = isLeaf;
+                this.id = Math.random().toString(36).substr(2, 9);
+            }
+
+            isFull() {
+                return this.keys.length >= MAX_KEYS;
+            }
+
+            hasMinKeys() {
+                return this.keys.length >= MIN_KEYS;
+            }
+
+            canBorrowFromSibling() {
+                return this.keys.length > MIN_KEYS;
+            }
+
+            findKeyIndex(key) {
+                let idx = 0;
+                while (idx < this.keys.length && this.compareKeys(this.keys[idx], key) < 0) {
+                    idx++;
+                }
+                return idx;
+            }
+
+            compareKeys(key1, key2) {
+                // Handle mixed data types: numbers, strings, etc.
+                if (typeof key1 === 'number' && typeof key2 === 'number') {
+                    return key1 - key2;
+                }
+                if (typeof key1 === 'string' && typeof key2 === 'string') {
+                    return key1.localeCompare(key2);
+                }
+                // If types are different, convert to string for comparison
+                return String(key1).localeCompare(String(key2));
+            }
+        }
+
+        class BTree {
+            constructor() {
+                this.root = null;
+            }
+
+            insert(key) {
+                if (this.root === null) {
+                    this.root = new BTreeNode(true);
+                    this.root.keys.push(key);
+                    return { type: 'new_root', node: this.root };
+                }
+
+                // If root is full, split it first
+                if (this.root.isFull()) {
+                    const newRoot = new BTreeNode(false);
+                    newRoot.children.push(this.root);
+                    const splitResult = this.splitChild(newRoot, 0);
+                    this.root = newRoot;
+                    
+                    // Determine which child to insert into
+                    const idx = newRoot.findKeyIndex(key);
+                    return this.insertNonFull(newRoot.children[idx], key, newRoot, idx);
+                } else {
+                    return this.insertNonFull(this.root, key);
+                }
+            }
+
+            insertNonFull(node, key, parent = null, parentIndex = -1) {
+                const idx = node.findKeyIndex(key);
+
+                if (node.isLeaf) {
+                    // Insert key into leaf node
+                    node.keys.splice(idx, 0, key);
+                    return { type: 'inserted_leaf', node, key, index: idx };
+                } else {
+                    // Insert into internal node
+                    let child = node.children[idx];
+                    
+                    // If child is full, split it
+                    if (child.isFull()) {
+                        const splitResult = this.splitChild(node, idx);
+                        
+                        // After split, determine which child to insert into
+                        if (node.compareKeys(node.keys[idx], key) < 0) {
+                            idx++;
+                            child = node.children[idx];
+                        }
+                    }
+                    
+                    return this.insertNonFull(child, key, node, idx);
+                }
+            }
+
+            splitChild(parent, index) {
+                const fullChild = parent.children[index];
+                const newNode = new BTreeNode(fullChild.isLeaf);
+                
+                // Split keys
+                const midIndex = Math.floor(fullChild.keys.length / 2);
+                const promotedKey = fullChild.keys[midIndex];
+                
+                newNode.keys = fullChild.keys.slice(midIndex + 1);
+                fullChild.keys = fullChild.keys.slice(0, midIndex);
+                
+                // Split children if not leaf
+                if (!fullChild.isLeaf) {
+                    newNode.children = fullChild.children.slice(midIndex + 1);
+                    fullChild.children = fullChild.children.slice(0, midIndex + 1);
+                }
+                
+                // Insert promoted key to parent and new child
+                parent.keys.splice(index, 0, promotedKey);
+                parent.children.splice(index + 1, 0, newNode);
+                
+                return { 
+                    type: 'split', 
+                    parent, 
+                    leftChild: fullChild, 
+                    rightChild: newNode, 
+                    promotedKey 
+                };
+            }
+
+            delete(key) {
+                if (this.root === null) {
+                    return { type: 'empty_tree' };
+                }
+
+                const result = this.deleteFromNode(this.root, key);
+                
+                // If root becomes empty and has children, make first child new root
+                if (this.root.keys.length === 0 && !this.root.isLeaf) {
+                    this.root = this.root.children[0];
+                    result.type = 'root_collapsed';
+                }
+                
+                return result;
+            }
+
+            deleteFromNode(node, key, parent = null, parentIndex = -1) {
+                const idx = node.findKeyIndex(key);
+
+                if (idx < node.keys.length && node.compareKeys(node.keys[idx], key) === 0) {
+                    // Key found in this node
+                    if (node.isLeaf) {
+                        // Simple case: delete from leaf
+                        node.keys.splice(idx, 1);
+                        return { type: 'deleted_leaf', node, key, index: idx };
+                    } else {
+                        // Delete from internal node
+                        return this.deleteFromInternalNode(node, idx, key);
+                    }
+                } else {
+                    // Key not in this node, go to appropriate child
+                    if (node.isLeaf) {
+                        return { type: 'key_not_found', key };
+                    }
+
+                    let child = node.children[idx];
+                    
+                    // Ensure child has at least MIN_KEYS keys
+                    if (child.keys.length <= MIN_KEYS) {
+                        const fixResult = this.fixChildSize(node, idx);
+                        if (fixResult.type === 'merged') {
+                            child = node.children[idx]; // Child might have changed
+                        }
+                    }
+                    
+                    return this.deleteFromNode(child, key, node, idx);
+                }
+            }
+
+            deleteFromInternalNode(node, idx, key) {
+                // Case 1: Replace with predecessor
+                if (node.children[idx].keys.length >= MIN_KEYS) {
+                    const predecessor = this.getPredecessor(node.children[idx]);
+                    node.keys[idx] = predecessor;
+                    return this.deleteFromNode(node.children[idx], predecessor, node, idx);
+                }
+                // Case 2: Replace with successor
+                else if (node.children[idx + 1].keys.length >= MIN_KEYS) {
+                    const successor = this.getSuccessor(node.children[idx + 1]);
+                    node.keys[idx] = successor;
+                    return this.deleteFromNode(node.children[idx + 1], successor, node, idx + 1);
+                }
+                // Case 3: Merge and delete
+                else {
+                    const mergeResult = this.mergeChildren(node, idx);
+                    return this.deleteFromNode(mergeResult.mergedNode, key, node, idx);
+                }
+            }
+
+            fixChildSize(parent, index) {
+                let child = parent.children[index];
+                
+                // Try to borrow from left sibling
+                if (index > 0 && parent.children[index - 1].canBorrowFromSibling()) {
+                    return this.borrowFromLeftSibling(parent, index);
+                }
+                // Try to borrow from right sibling
+                else if (index < parent.children.length - 1 && parent.children[index + 1].canBorrowFromSibling()) {
+                    return this.borrowFromRightSibling(parent, index);
+                }
+                // Merge with sibling
+                else {
+                    if (index < parent.children.length - 1) {
+                        return this.mergeChildren(parent, index);
+                    } else {
+                        return this.mergeChildren(parent, index - 1);
+                    }
+                }
+            }
+
+            borrowFromLeftSibling(parent, index) {
+                const child = parent.children[index];
+                const leftSibling = parent.children[index - 1];
+                
+                // Move parent key down to child
+                child.keys.unshift(parent.keys[index - 1]);
+                
+                // Move left sibling's last key up to parent
+                parent.keys[index - 1] = leftSibling.keys.pop();
+                
+                // If not leaf, move child pointer
+                if (!leftSibling.isLeaf) {
+                    child.children.unshift(leftSibling.children.pop());
+                }
+                
+                return { type: 'borrowed_left', child, leftSibling, parent };
+            }
+
+            borrowFromRightSibling(parent, index) {
+                const child = parent.children[index];
+                const rightSibling = parent.children[index + 1];
+                
+                // Move parent key down to child
+                child.keys.push(parent.keys[index]);
+                
+                // Move right sibling's first key up to parent
+                parent.keys[index] = rightSibling.keys.shift();
+                
+                // If not leaf, move child pointer
+                if (!rightSibling.isLeaf) {
+                    child.children.push(rightSibling.children.shift());
+                }
+                
+                return { type: 'borrowed_right', child, rightSibling, parent };
+            }
+
+            mergeChildren(parent, index) {
+                const leftChild = parent.children[index];
+                const rightChild = parent.children[index + 1];
+                
+                // Move parent key down to left child
+                leftChild.keys.push(parent.keys[index]);
+                
+                // Merge right child's keys and children
+                leftChild.keys.push(...rightChild.keys);
+                if (!rightChild.isLeaf) {
+                    leftChild.children.push(...rightChild.children);
+                }
+                
+                // Remove parent key and right child
+                parent.keys.splice(index, 1);
+                parent.children.splice(index + 1, 1);
+                
+                return { type: 'merged', mergedNode: leftChild, leftChild, rightChild, parent };
+            }
+
+            getPredecessor(node) {
+                let current = node;
+                while (!current.isLeaf) {
+                    current = current.children[current.children.length - 1];
+                }
+                return current.keys[current.keys.length - 1];
+            }
+
+            getSuccessor(node) {
+                let current = node;
+                while (!current.isLeaf) {
+                    current = current.children[0];
+                }
+                return current.keys[0];
+            }
+
+            getHeight() {
+                if (!this.root) return 0;
+                let height = 1;
+                let current = this.root;
+                while (!current.isLeaf) {
+                    height++;
+                    current = current.children[0];
+                }
+                return height;
+            }
+
+            getNodeCount() {
+                if (!this.root) return 0;
+                return this.countNodesHelper(this.root);
+            }
+
+            countNodesHelper(node) {
+                if (node.isLeaf) return 1;
+                let count = 1;
+                for (let child of node.children) {
+                    count += this.countNodesHelper(child);
+                }
+                return count;
+            }
+
+            getTotalKeys() {
+                if (!this.root) return 0;
+                return this.countKeysHelper(this.root);
+            }
+
+            countKeysHelper(node) {
+                let count = node.keys.length;
+                if (!node.isLeaf) {
+                    for (let child of node.children) {
+                        count += this.countKeysHelper(child);
+                    }
+                }
+                return count;
+            }
+        }
+
+        // Animation System
+        class AnimationController {
+            constructor() {
+                this.btree = new BTree();
+                this.isPlaying = false;
+                this.animationSpeed = 1500;
+                this.currentStep = 0;
+                this.animationQueue = [];
+                this.zoomLevel = 1;
+                this.isDarkTheme = false;
+            }
+
+            async animateInsert(key) {
+                this.addStep('start', `Inserting key ${key}`, `Starting insertion process`);
+                this.updatePseudocode('insert', key);
+                this.highlightComplexity('insert');
+                
+                // Highlight search path
+                const searchPath = this.findSearchPath(key);
+                await this.highlightPath(searchPath);
+                
+                // Perform insertion
+                const result = this.btree.insert(key);
+                await this.animateInsertResult(result);
+                
+                // Update visualization
+                this.visualizeTree();
+                this.updateStatistics();
+                this.updateComplexityInfo();
+                
+                this.addStep('complete', `Key ${key} inserted`, `Insertion completed successfully`);
+                this.showNotification(`Key ${key} inserted successfully`, 'success');
+                document.getElementById('lastOp').textContent = `Insert ${key}`;
+            }
+
+            async animateDelete(key) {
+                this.addStep('start', `Deleting key ${key}`, `Starting deletion process`);
+                this.updatePseudocode('delete', key);
+                this.highlightComplexity('delete');
+                
+                // Highlight search path
+                const searchPath = this.findSearchPath(key);
+                await this.highlightPath(searchPath);
+                
+                // Perform deletion
+                const result = this.btree.delete(key);
+                await this.animateDeleteResult(result);
+                
+                // Update visualization
+                this.visualizeTree();
+                this.updateStatistics();
+                this.updateComplexityInfo();
+                
+                this.addStep('complete', `Key ${key} deleted`, `Deletion completed successfully`);
+                this.showNotification(`Key ${key} deleted successfully`, 'success');
+                document.getElementById('lastOp').textContent = `Delete ${key}`;
+            }
+
+            findSearchPath(key) {
+                const path = [];
+                this.findSearchPathHelper(this.btree.root, key, path);
+                return path;
+            }
+
+            findSearchPathHelper(node, key, path) {
+                if (!node) return;
+                path.push(node);
+                
+                if (!node.isLeaf) {
+                    const idx = node.findKeyIndex(key);
+                    this.findSearchPathHelper(node.children[idx], key, path);
+                }
+            }
+
+            async highlightPath(path) {
+                for (let node of path) {
+                    const element = document.querySelector(`[data-node-id="node-${node.id}"]`);
+                    if (element) {
+                        element.classList.add('highlighted');
+                        await this.sleep(this.animationSpeed / 3);
+                        element.classList.remove('highlighted');
+                    }
+                }
+            }
+
+            async animateInsertResult(result) {
+                switch (result.type) {
+                    case 'new_root':
+                        await this.animateNewRoot(result);
+                        break;
+                    case 'inserted_leaf':
+                        await this.animateLeafInsert(result);
+                        break;
+                    case 'split':
+                        await this.animateSplit(result);
+                        break;
+                }
+            }
+
+            async animateDeleteResult(result) {
+                switch (result.type) {
+                    case 'deleted_leaf':
+                        await this.animateLeafDelete(result);
+                        break;
+                    case 'borrowed_left':
+                    case 'borrowed_right':
+                        await this.animateBorrow(result);
+                        break;
+                    case 'merged':
+                        await this.animateMerge(result);
+                        break;
+                    case 'root_collapsed':
+                        await this.animateRootCollapse(result);
+                        break;
+                }
+            }
+
+            async animateNewRoot(result) {
+                const element = document.querySelector(`[data-node-id="node-${result.node.id}"]`);
+                if (element) {
+                    element.classList.add('splitting');
+                    await this.sleep(this.animationSpeed);
+                    element.classList.remove('splitting');
+                }
+            }
+
+            async animateLeafInsert(result) {
+                const element = document.querySelector(`[data-node-id="node-${result.node.id}"]`);
+                if (element) {
+                    const keyElements = element.querySelectorAll('.node-key');
+                    if (keyElements[result.index]) {
+                        keyElements[result.index].classList.add('new');
+                        await this.sleep(this.animationSpeed);
+                    }
+                }
+            }
+
+            async animateSplit(result) {
+                const parentEl = document.querySelector(`[data-node-id="node-${result.parent.id}"]`);
+                if (parentEl) {
+                    parentEl.classList.add('splitting');
+                    await this.sleep(this.animationSpeed);
+                    parentEl.classList.remove('splitting');
+                }
+            }
+
+            async animateLeafDelete(result) {
+                const element = document.querySelector(`[data-node-id="node-${result.node.id}"]`);
+                if (element) {
+                    const keyElements = element.querySelectorAll('.node-key');
+                    if (keyElements[result.index]) {
+                        keyElements[result.index].classList.add('deleting');
+                        await this.sleep(this.animationSpeed);
+                    }
+                }
+            }
+
+            async animateBorrow(result) {
+                const childEl = document.querySelector(`[data-node-id="node-${result.child.id}"]`);
+                if (childEl) {
+                    childEl.classList.add('highlighted');
+                    await this.sleep(this.animationSpeed / 2);
+                    childEl.classList.remove('highlighted');
+                }
+            }
+
+            async animateMerge(result) {
+                const leftEl = document.querySelector(`[data-node-id="node-${result.leftChild.id}"]`);
+                const rightEl = document.querySelector(`[data-node-id="node-${result.rightChild.id}"]`);
+                
+                if (leftEl && rightEl) {
+                    leftEl.classList.add('merging');
+                    rightEl.classList.add('merging');
+                    await this.sleep(this.animationSpeed);
+                    leftEl.classList.remove('merging');
+                    rightEl.classList.remove('merging');
+                }
+            }
+
+            async animateRootCollapse(result) {
+                const rootEl = document.querySelector('.tree-nodes > .tree-node > .node-box.root');
+                if (rootEl) {
+                    rootEl.classList.add('merging');
+                    await this.sleep(this.animationSpeed);
+                    rootEl.classList.remove('merging');
+                }
+            }
+
+            visualizeTree() {
+                const container = document.getElementById('treeContent');
+                const nodesContainer = document.getElementById('treeNodes');
+                const svg = document.getElementById('treeSvg');
+                
+                if (!this.btree.root) {
+                    nodesContainer.innerHTML = `
+                        <div class="text-center text-gray-500 mt-20">
+                            <i class="fas fa-sitemap text-6xl mb-4 opacity-50"></i>
+                            <p class="text-xl font-semibold">Empty B-Tree</p>
+                            <p class="text-sm mt-2">Click "Auto Insert" or manually insert keys to begin</p>
+                        </div>
+                    `;
+                    svg.innerHTML = '';
+                    return;
+                }
+
+                nodesContainer.innerHTML = '';
+                svg.innerHTML = '';
+                container.style.transform = `scale(${this.zoomLevel})`;
+                
+                const treeHtml = this.createTreeNode(this.btree.root, true);
+                nodesContainer.innerHTML = treeHtml;
+                
+                this.drawEdges();
+            }
+
+            createTreeNode(node, isRoot = false) {
+                if (!node) return '';
+                
+                const nodeId = 'node-' + node.id;
+                const keysHtml = node.keys.map(key => 
+                    `<span class="node-key">${key}</span>`
+                ).join('');
+                
+                let html = `
+                    <div class="tree-node" data-node-id="${nodeId}">
+                        <div class="node-box ${isRoot ? 'root' : ''}" data-node-id="${nodeId}">
+                            ${keysHtml}
+                        </div>
+                `;
+                
+                if (!node.isLeaf && node.children.length > 0) {
+                    html += '<div class="node-children">';
+                    node.children.forEach(child => {
+                        html += this.createTreeNode(child, false);
+                    });
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+                return html;
+            }
+
+            drawEdges() {
+                const svg = document.getElementById('treeSvg');
+                const container = document.getElementById('treeContent');
+                
+                svg.innerHTML = '';
+                
+                function drawEdgesRecursive(parentElement) {
+                    const parentBox = parentElement.querySelector(':scope > .node-box');
+                    const childrenContainer = parentElement.querySelector(':scope > .node-children');
+                    
+                    if (!parentBox || !childrenContainer) return;
+                    
+                    const childNodes = Array.from(childrenContainer.children);
+                    
+                    childNodes.forEach(childNode => {
+                        const childBox = childNode.querySelector('.node-box');
+                        if (!childBox) return;
+                        
+                        const parentRect = parentBox.getBoundingClientRect();
+                        const childRect = childBox.getBoundingClientRect();
+                        const containerRect = container.getBoundingClientRect();
+                        
+                        const x1 = parentRect.left + parentRect.width / 2 - containerRect.left;
+                        const y1 = parentRect.bottom - containerRect.top - 5;
+                        const x2 = childRect.left + childRect.width / 2 - containerRect.left;
+                        const y2 = childRect.top - containerRect.top + 5;
+                        
+                        const edge = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        edge.setAttribute('x1', x1);
+                        edge.setAttribute('y1', y1);
+                        edge.setAttribute('x2', x2);
+                        edge.setAttribute('y2', y2);
+                        edge.setAttribute('class', 'tree-edge');
+                        edge.setAttribute('stroke', '#6366f1');
+                        edge.setAttribute('stroke-width', '3');
+                        edge.setAttribute('fill', 'none');
+                        edge.setAttribute('stroke-linecap', 'round');
+                        
+                        svg.appendChild(edge);
+                        
+                        drawEdgesRecursive(childNode);
+                    });
+                }
+                
+                const rootNode = container.querySelector('.tree-nodes > .tree-node');
+                if (rootNode) {
+                    drawEdgesRecursive(rootNode);
+                }
+            }
+
+            async generateInsertSequence() {
+                // Mixed sequence with numbers, letters, and words
+                const keys = [20, 'M', 30, 'A', 15, 'Z', 25, 'K', 5, 'C', 35, 'X', 10, 'B', 40, 'apple', 12, 'banana', 28, 'cherry'];
+                this.animationQueue = keys;
+                this.currentStep = 0;
+                this.isPlaying = true;
+                
+                document.getElementById('playBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                
+                for (let key of keys) {
+                    if (!this.isPlaying) break;
+                    await this.animateInsert(key);
+                    await this.sleep(this.animationSpeed);
+                }
+                
+                this.isPlaying = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+            }
+
+            async generateDeleteSequence() {
+                // Mixed sequence for deletion
+                const keys = ['M', 25, 'A', 30, 15, 'Z', 'apple'];
+                this.animationQueue = keys;
+                this.currentStep = 0;
+                this.isPlaying = true;
+                
+                document.getElementById('playBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                
+                for (let key of keys) {
+                    if (!this.isPlaying) break;
+                    await this.animateDelete(key);
+                    await this.sleep(this.animationSpeed);
+                }
+                
+                this.isPlaying = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            updateStatistics() {
+                document.getElementById('totalKeys').textContent = this.btree.getTotalKeys();
+                document.getElementById('treeHeight').textContent = this.btree.getHeight();
+                document.getElementById('nodeCount').textContent = this.btree.getNodeCount();
+            }
+
+            updatePseudocode(operation, data = null) {
+                const container = document.getElementById('pseudocode');
+                
+                let pseudocode = '';
+                
+                switch(operation) {
+                    case 'insert':
+                        pseudocode = `
+                            <div><span class="code-comment">// Inserting key: ${data}</span></div>
+                            <div><span class="code-keyword">function</span> <span class="code-function">INSERT</span>(key):</div>
+                            <div>  <span class="code-keyword">if</span> root <span class="code-keyword">is full</span>: split root</div>
+                            <div>  INSERT_NON_FULL(root, key)</div>
+                            <div>  <span class="code-keyword">if</span> node <span class="code-keyword">is full</span>: split node</div>
+                        `;
+                        break;
+                    case 'delete':
+                        pseudocode = `
+                            <div><span class="code-comment">// Deleting key: ${data}</span></div>
+                            <div><span class="code-keyword">function</span> <span class="code-function">DELETE</span>(key):</div>
+                            <div>  DELETE_FROM_NODE(root, key)</div>
+                            <div>  <span class="code-keyword">if</span> node.keys < MIN_KEYS:</div>
+                            <div>    borrow <span class="code-keyword">or</span> merge with sibling</div>
+                        `;
+                        break;
+                }
+                
+                container.innerHTML = pseudocode;
+            }
+
+            addStep(type, title, description) {
+                const container = document.getElementById('operationSteps');
+                const stepId = 'step-' + Date.now();
+                
+                let icon = '';
+                switch(type) {
+                    case 'start': icon = 'fa-play'; break;
+                    case 'complete': icon = 'fa-check'; break;
+                    case 'split': icon = 'fa-code-branch'; break;
+                    case 'merge': icon = 'fa-compress'; break;
+                    case 'borrow': icon = 'fa-exchange-alt'; break;
+                }
+                
+                const stepHtml = `
+                    <div id="${stepId}" class="step-item">
+                        <div class="step-icon">
+                            <i class="fas ${icon}" style="font-size: 10px;"></i>
+                        </div>
+                        <div class="step-content">
+                            <div class="step-title">${title}</div>
+                            <div class="step-description">${description}</div>
+                        </div>
+                    </div>
+                `;
+                
+                container.insertAdjacentHTML('afterbegin', stepHtml);
+                
+                // Keep only last 8 steps
+                const steps = container.querySelectorAll('.step-item');
+                if (steps.length > 8) {
+                    steps[steps.length - 1].remove();
+                }
+            }
+
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+
+            highlightComplexity(operation) {
+                const panel = document.getElementById('complexityPanel');
+                panel.classList.add('highlight-complexity');
+                
+                setTimeout(() => {
+                    panel.classList.remove('highlight-complexity');
+                }, 2000);
+            }
+
+            updateComplexityInfo() {
+                const totalKeys = this.btree.getTotalKeys();
+                const height = this.btree.getHeight();
+                
+                // Update complexity explanation with current tree stats
+                const explanation = document.querySelector('.complexity-explanation');
+                if (explanation) {
+                    explanation.innerHTML = `
+                        <strong>Why O(logₜ n)?</strong> B-trees maintain balance by ensuring all leaf nodes are at the same depth. 
+                        With minimum degree t=${MIN_DEGREE}, each internal node (except root) has between ${MIN_KEYS} and ${MAX_KEYS} keys, 
+                        guaranteeing logarithmic height. Current tree: ${totalKeys} keys, height ${height}.
+                    `;
+                }
+            }
+        }
+
+        // Global Animation Controller
+        let animationController = new AnimationController();
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Speed control
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
+                animationController.animationSpeed = parseFloat(e.target.value) * 1000;
+                document.getElementById('speedValue').textContent = e.target.value + 's';
+            });
+
+            // Enter key support
+            document.getElementById('keyInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    insertKey();
+                }
+            });
+
+            document.getElementById('deleteInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    deleteKey();
+                }
+            });
+        });
+
+        // Control Functions
+        async function insertKey() {
+            const input = document.getElementById('keyInput');
+            const value = input.value.trim();
+            
+            if (value === '') {
+                animationController.showNotification('Please enter a value', 'error');
+                return;
+            }
+
+            // Parse the input - try number first, otherwise use as string
+            let key;
+            // Check if it's a pure number (no decimal points)
+            if (/^-?\d+$/.test(value)) {
+                // It's a number
+                key = parseInt(value);
+            } else {
+                // It's a string/letter/word
+                key = value;
+            }
+
+            await animationController.animateInsert(key);
+            input.value = '';
+        }
+
+        async function deleteKey() {
+            const input = document.getElementById('deleteInput');
+            const value = input.value.trim();
+            
+            if (value === '') {
+                animationController.showNotification('Please enter a value', 'error');
+                return;
+            }
+
+            // Parse the input - try number first, otherwise use as string
+            let key;
+            // Check if it's a pure number (no decimal points)
+            if (/^-?\d+$/.test(value)) {
+                // It's a number
+                key = parseInt(value);
+            } else {
+                // It's a string/letter/word
+                key = value;
+            }
+
+            await animationController.animateDelete(key);
+            input.value = '';
+        }
+
+        function playAnimation() {
+            animationController.generateInsertSequence();
+        }
+
+        function pauseAnimation() {
+            animationController.isPlaying = false;
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+        }
+
+        function stepForward() {
+            // Implementation for step-by-step animation
+            animationController.showNotification('Step forward feature coming soon!', 'info');
+        }
+
+        function resetAnimation() {
+            animationController = new AnimationController();
+            animationController.visualizeTree();
+            animationController.updateStatistics();
+            animationController.showNotification('Animation reset', 'info');
+        }
+
+        function generateInsertSequence() {
+            animationController.generateInsertSequence();
+        }
+
+        function generateDeleteSequence() {
+            animationController.generateDeleteSequence();
+        }
+
+        function clearTree() {
+            animationController.btree = new BTree();
+            animationController.visualizeTree();
+            animationController.updateStatistics();
+            animationController.showNotification('Tree cleared', 'info');
+            document.getElementById('lastOp').textContent = 'Clear';
+        }
+
+        function generateRandomTree() {
+            clearTree();
+            const keys = [];
+            
+            // Generate mixed random data: numbers, letters, and words
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            const words = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape'];
+            
+            for (let i = 0; i < 15; i++) {
+                const randomType = Math.floor(Math.random() * 3);
+                if (randomType === 0) {
+                    // Add a number
+                    keys.push(Math.floor(Math.random() * 100) + 1);
+                } else if (randomType === 1) {
+                    // Add a letter
+                    keys.push(letters[Math.floor(Math.random() * letters.length)]);
+                } else {
+                    // Add a word
+                    keys.push(words[Math.floor(Math.random() * words.length)]);
+                }
+            }
+            
+            // Sort using the B-Tree comparison logic
+            keys.sort((a, b) => {
+                if (typeof a === 'number' && typeof b === 'number') {
+                    return a - b;
+                }
+                if (typeof a === 'string' && typeof b === 'string') {
+                    return a.localeCompare(b);
+                }
+                return String(a).localeCompare(String(b));
+            });
+            
+            keys.forEach(key => {
+                animationController.btree.insert(key);
+            });
+            
+            animationController.visualizeTree();
+            animationController.updateStatistics();
+            animationController.showNotification('Random mixed tree generated', 'success');
+            document.getElementById('lastOp').textContent = 'Random';
+        }
+
+        function zoomIn() {
+            animationController.zoomLevel = Math.min(animationController.zoomLevel + 0.1, 2);
+            document.getElementById('treeContent').style.transform = `scale(${animationController.zoomLevel})`;
+            setTimeout(() => animationController.drawEdges(), 50);
+        }
+
+        function zoomOut() {
+            animationController.zoomLevel = Math.max(animationController.zoomLevel - 0.1, 0.5);
+            document.getElementById('treeContent').style.transform = `scale(${animationController.zoomLevel})`;
+            setTimeout(() => animationController.drawEdges(), 50);
+        }
+
+        function resetZoom() {
+            animationController.zoomLevel = 1;
+            document.getElementById('treeContent').style.transform = `scale(${animationController.zoomLevel})`;
+            setTimeout(() => animationController.drawEdges(), 50);
+        }
+
+        function changeTreeOrder() {
+            const select = document.getElementById('orderSelect');
+            const newDegree = parseInt(select.value);
+            
+            // Update global constants
+            MIN_DEGREE = newDegree;
+            MAX_KEYS = 2 * MIN_DEGREE - 1;
+            MIN_KEYS = MIN_DEGREE - 1;
+            
+            // Update info display
+            document.getElementById('orderInfo').textContent = 
+                `Current: t=${MIN_DEGREE}, Min keys=${MIN_KEYS}, Max keys=${MAX_KEYS}`;
+            
+            // Update header to show current order
+            document.getElementById('currentDegree').textContent = MIN_DEGREE;
+            document.getElementById('maxKeysDisplay').textContent = MAX_KEYS;
+            document.getElementById('minKeysDisplay').textContent = MIN_KEYS;
+            
+            // Clear and recreate tree with new order
+            clearTree();
+            
+            animationController.showNotification(`B-Tree order changed to t=${MIN_DEGREE}`, 'success');
+            animationController.updateComplexityInfo();
+        }
+
+        function toggleTheme() {
+            animationController.isDarkTheme = !animationController.isDarkTheme;
+            if (animationController.isDarkTheme) {
+                document.body.style.background = 'linear-gradient(135deg, #1e293b 0%, #334155 100%)';
+            } else {
+                document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+        }
+    </script>
+</body>
+</html>
